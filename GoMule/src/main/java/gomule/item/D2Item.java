@@ -1425,7 +1425,7 @@ public class D2Item implements Comparable, D2ItemInterface {
             return Color.yellow.brighter();
         }
         if (isMagical()) {
-            return new Color(72, 118, 255);
+            return new Color(108, 145, 255);
         }
         if (isRune()) {
             return Color.orange;
