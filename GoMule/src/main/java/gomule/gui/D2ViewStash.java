@@ -184,6 +184,8 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
 //        Font lFont = iTable.getTableHeader().getFont();
 //            iTable.getTableHeader().setFont( new Font(lFont.getName(), lFont.getStyle(), lFont.getSize()-2) );
+        Font font = iTable.getFont();
+        iTable.setFont(new Font(font.getName(), font.getStyle(), 15));
         iTable.getTableHeader().addMouseListener(new MouseAdapter() {
             public void mouseReleased(MouseEvent e) {
                 if (e.getSource() instanceof JTableHeader) {
@@ -201,12 +203,12 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
         iTable.setDefaultRenderer(String.class, new D2CellStringRenderer());
         iTable.getSelectionModel().setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        iTable.getColumnModel().getColumn(0).setPreferredWidth(140);
-        iTable.getColumnModel().getColumn(1).setPreferredWidth(11);
-        iTable.getColumnModel().getColumn(2).setPreferredWidth(11);
-        iTable.getColumnModel().getColumn(3).setPreferredWidth(15);
+        iTable.getColumnModel().getColumn(0).setPreferredWidth(175);
+        iTable.getColumnModel().getColumn(1).setPreferredWidth(14);
+        iTable.getColumnModel().getColumn(2).setPreferredWidth(14);
+        iTable.getColumnModel().getColumn(3).setPreferredWidth(19);
         JScrollPane lPane = new JScrollPane(iTable);
-        lPane.setPreferredSize(new Dimension(257, 100));
+        lPane.setPreferredSize(new Dimension(321, 125));
 
         JSplitPane stashConts = new JSplitPane();
         stashConts.setLeftComponent(lPane);
@@ -270,18 +272,18 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         JScrollPane lItemScroll = new JScrollPane(iItemText);
         lItemPanel.setLayout(new BorderLayout());
         lItemPanel.add(lItemScroll, BorderLayout.CENTER);
-        lItemPanel.setPreferredSize(new Dimension(250, 100));
+        lItemPanel.setPreferredSize(new Dimension(313, 125));
 
 //        iContentPane.add(lItemPanel, BorderLayout.CENTER);
 
         stashConts.setRightComponent(lItemPanel);
         stashConts.setDividerSize(3);
-        stashConts.setDividerLocation(257);
+        stashConts.setDividerLocation(321);
         iContentPane.add(stashConts);
         setContentPane(iContentPane);
 
         pack();
-        setSize(514, 500);
+        setSize(643, 625);
         setVisible(true);
 
 
@@ -317,12 +319,12 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
                         String dispStr = D2ItemRenderer.itemDumpHtml(iItemModel.getItem(iTable.getSelectedRow()), true)
                                 .replaceAll("<[/]*html>", "");
                         if (!isStash()) {
-                            iItemText.setText("<html><font size=3 face=Dialog><font color = white>Item From: "
+                            iItemText.setText("<html><font size=5 face=Dialog><font color = white>Item From: "
                                     + (((D2ItemListAll) iStash)
                                     .getFilename(iItemModel.getItem(iTable.getSelectedRow())))
                                     + "</font><br><br>" + dispStr + "</font></html>");
                         } else {
-                            iItemText.setText("<html><font size=3 face=Dialog>" + dispStr + "</font></html>");
+                            iItemText.setText("<html><font size=5 face=Dialog>" + dispStr + "</font></html>");
                         }
                         iItemText.setCaretPosition(0);
                     } else {

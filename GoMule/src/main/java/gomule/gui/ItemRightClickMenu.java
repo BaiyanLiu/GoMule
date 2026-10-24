@@ -32,12 +32,12 @@ public class ItemRightClickMenu extends JPopupMenu {
             report.setBackground(Color.black);
             report.setForeground(Color.white);
             report.setText(
-                    "<html><font size=3 face=Dialog>" + D2ItemRenderer.itemDumpHtml(item, true) + "</font></html>");
+                    "<html><font size=5 face=Dialog>" + D2ItemRenderer.itemDumpHtml(item, true) + "</font></html>");
             report.setCaretPosition(0);
             itemPanel.add(SP);
             Point mouseLocation = MouseInfo.getPointerInfo().getLocation();
             itemPanel.setLocation(mouseLocation.x - 20, mouseLocation.y - 20);
-            itemPanel.setSize(200, 400);
+            itemPanel.setSize(250, 500);
             itemPanel.setVisible(true);
             itemPanel.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         });

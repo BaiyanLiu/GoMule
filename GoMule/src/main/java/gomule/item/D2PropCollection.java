@@ -339,9 +339,9 @@ public class D2PropCollection extends ArrayList {
 
         StringBuilder arrOut = new StringBuilder();
         if (qFlag < 7) {
-            arrOut.append("<font color=\"#4850b8\">");
+            arrOut.append("<font color=\"#6C91FF\">");
         } else if (qFlag < 17) {
-            arrOut.append("<font color=\"#4850b8\">");
+            arrOut.append("<font color=\"#6C91FF\">");
         } else if (qFlag < 36) {
             arrOut.append("<font color=\"#ffdead\">");
         } else if (qFlag < 37) {

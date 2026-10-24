@@ -75,7 +75,11 @@ public class GoMule {
             UIManager.setLookAndFeel(lLookAndFeel);
             UIManager.put("ToolTip.background", Color.black);
             UIManager.put("ToolTip.foreground", Color.white);
+            Font tooltipFont = UIManager.getFont("ToolTip.font");
+            UIManager.put("ToolTip.font", new Font(tooltipFont.getName(), tooltipFont.getStyle(), 15));
             UIManager.put("info", Color.black);
+            Font defaultFont = UIManager.getFont("defaultFont");
+            UIManager.put("defaultFont", new Font(defaultFont.getName(), defaultFont.getStyle(), 13));
             ToolTipManager.sharedInstance().setInitialDelay(0);
         } catch (Exception e) {
             e.printStackTrace();
