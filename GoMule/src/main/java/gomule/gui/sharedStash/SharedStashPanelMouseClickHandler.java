@@ -1,7 +1,10 @@
 package gomule.gui.sharedStash;
 
 import gomule.d2i.D2SharedStash;
+import gomule.gui.D2FileManager;
+import gomule.gui.D2ItemList;
 import gomule.gui.D2ViewClipboard;
+import gomule.gui.D2ViewProject;
 import gomule.gui.ItemRightClickMenu;
 import gomule.item.D2Item;
 
@@ -14,15 +17,67 @@ import static gomule.gui.sharedStash.SharedStashPanel.*;
 class SharedStashPanelMouseClickHandler extends MouseAdapter {
 
     private final SharedStashPanel sharedStashPanel;
+    private D2Item draggedItem;
 
     public SharedStashPanelMouseClickHandler(SharedStashPanel sharedStashPanel) {
         this.sharedStashPanel = sharedStashPanel;
     }
 
     @Override
+    public void mousePressed(MouseEvent e) {
+        draggedItem = e.getButton() == MouseEvent.BUTTON1 ? getItemAt(e.getX(), e.getY()) : null;
+    }
+
+    @Override
+    public void mouseDragged(MouseEvent e) {
+        if (draggedItem == null) return;
+        String stashFileName = getViewProject().getStashFileAt(sharedStashPanel, e.getPoint());
+        getViewProject().showDropTarget(stashFileName);
+        if (stashFileName != null) {
+            sharedStashPanel.setCursorDropItem();
+        } else {
+            sharedStashPanel.setCursorPickupItem();
+        }
+    }
+
+    @Override
     public void mouseReleased(MouseEvent e) {
+        D2Item item = draggedItem;
+        draggedItem = null;
+        if (item != null) {
+            getViewProject().clearDropTarget();
+            String stashFileName = getViewProject().getStashFileAt(sharedStashPanel, e.getPoint());
+            if (e.getButton() == MouseEvent.BUTTON1 && stashFileName != null) {
+                moveItemToStash(item, stashFileName);
+                return;
+            }
+        }
         if (e.getButton() == MouseEvent.BUTTON1) handleLeftClick(e);
         if (e.getButton() == MouseEvent.BUTTON3) handleRightClick(e);
+    }
+
+    private void moveItemToStash(D2Item item, String stashFileName) {
+        D2SharedStash sharedStash = sharedStashPanel.getSharedStash();
+        if (sharedStash == null) return;
+        D2SharedStash.D2SharedStashPane stashPane = sharedStashPanel.getSelectedStashPane();
+        if (!stashPane.getItems().contains(item)) return;
+        D2ItemList stash = D2FileManager.getInstance().getItemListForDrop(stashFileName);
+        if (stash == null) return;
+        removeItem(stashPane, item);
+        stash.addItem(item);
+        sharedStashPanel.setCursorNormal();
+    }
+
+    private D2Item getItemAt(int x, int y) {
+        if (sharedStashPanel.getSharedStash() == null) return null;
+        int col = SharedStashPanel.getColForXCoord(x);
+        int row = SharedStashPanel.getRowForYCoord(y);
+        if (col < 0 || row < 0 || col > 9 || row > 9) return null;
+        return sharedStashPanel.getSelectedStashPane().getItemCovering(col, row);
+    }
+
+    private static D2ViewProject getViewProject() {
+        return D2FileManager.getInstance().getViewProject();
     }
 
     private void handleRightClick(MouseEvent e) {
@@ -63,6 +118,7 @@ class SharedStashPanelMouseClickHandler extends MouseAdapter {
     private void showGoldDialog() {
         JOptionPane.showConfirmDialog(sharedStashPanel, new SharedStashGoldTransferPanel(sharedStashPanel), "Transfer Gold",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE);
+        sharedStashPanel.build();
     }
 
     private void tryMoveItemFromClipboard(D2SharedStash.D2SharedStashPane stashPane, int col, int row) {

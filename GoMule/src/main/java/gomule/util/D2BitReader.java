@@ -263,7 +263,7 @@ public class D2BitReader {
 
         // generate a mask to clear the bits
         // that are going to be written
-        long mask = (1 << bits) - 1;
+        long mask = (1L << bits) - 1;
         mask = mask << (64 - bits - bits_past);
         mask = ~mask;
 

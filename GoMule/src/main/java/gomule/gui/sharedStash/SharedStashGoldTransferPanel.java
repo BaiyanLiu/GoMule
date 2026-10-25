@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 class SharedStashGoldTransferPanel extends JPanel {
+    static final int MAX_GOLD_PER_PANE = 2_500_000;
     private final SharedStashPanel sharedStashPanel;
 
     public SharedStashGoldTransferPanel(SharedStashPanel sharedStashPanel) {
@@ -45,7 +46,7 @@ class SharedStashGoldTransferPanel extends JPanel {
     private void transferGoldIn(int goldAmount) {
         transferGold(
                 goldAmount,
-                2_500_000,
+                MAX_GOLD_PER_PANE,
                 this::getBankGoldValue,
                 this::getSharedStashGoldValue,
                 this::updateBankGoldValue,
@@ -59,7 +60,8 @@ class SharedStashGoldTransferPanel extends JPanel {
 
     private void updateSelectedStashGoldValue(int gold) {
         D2SharedStash sharedStash = sharedStashPanel.getSharedStash();
-        sharedStash.replacePane(0, D2SharedStash.D2SharedStashPane.fromItems(sharedStash.getPane(0).getItems(), gold));
+        int paneIndex = sharedStashPanel.getSelectedStashPaneIndex();
+        sharedStash.replacePane(paneIndex, D2SharedStash.D2SharedStashPane.fromItems(sharedStash.getPane(paneIndex).getItems(), gold));
         sharedStash.setModified(true);
     }
 
@@ -68,17 +70,21 @@ class SharedStashGoldTransferPanel extends JPanel {
     }
 
     private int getSharedStashGoldValue() {
-        return sharedStashPanel.getSharedStash().getPane(0).getGold();
+        return sharedStashPanel.getSelectedStashPane().getGold();
     }
 
     private void transferGold(int goldAmount, int maxGold, Supplier<Integer> sourceGold, Supplier<Integer> destinationGold, Consumer<Integer> updateSource, Consumer<Integer> updateDestination) {
-        if (goldAmount > sourceGold.get()) goldAmount = sourceGold.get();
-        if (goldAmount > maxGold) goldAmount = maxGold;
+        goldAmount = clampTransferAmount(goldAmount, sourceGold.get(), destinationGold.get(), maxGold);
 
         int newSourceGoldValue = sourceGold.get() - goldAmount;
         int newDestinationGoldValue = destinationGold.get() + goldAmount;
         updateSource.accept(newSourceGoldValue);
         updateDestination.accept(newDestinationGoldValue);
+    }
+
+    static int clampTransferAmount(int goldAmount, int sourceGold, int destinationGold, int maxDestinationGold) {
+        int roomInDestination = Math.max(0, maxDestinationGold - destinationGold);
+        return Math.max(0, Math.min(goldAmount, Math.min(sourceGold, roomInDestination)));
     }
 
     public int getGoldAmount(JTextField transferGoldAmount) {

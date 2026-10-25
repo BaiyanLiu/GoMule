@@ -20,6 +20,8 @@
  ******************************************************************************/
 package gomule.util;
 
+import gomule.d2x.StashColumn;
+import gomule.d2x.StashSortRule;
 import gomule.gui.D2FileManager;
 import gomule.gui.D2ViewClipboard;
 import gomule.item.D2Item;
@@ -33,6 +35,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -62,6 +68,12 @@ public class D2Project {
     private ArrayList iCharList = new ArrayList();
     private ArrayList iStashList = new ArrayList();
     private ArrayList iSharedStashList = new ArrayList();
+    private final Map<String, List<StashSortRule>> iStashSortRules = new HashMap<>();
+    private final Map<String, List<StashColumn>> iStashColumns = new HashMap<>();
+    private final ProjectFolders iCharFolders = new ProjectFolders("char");
+    private final ProjectFolders iStashFolders = new ProjectFolders("stash");
+    private final ProjectFolders iSharedStashFolders = new ProjectFolders("sharedstash");
+    private final AllViewExclusions iStashesNotInAll = new AllViewExclusions("stash");
     private int iBank;
     private int iType = TYPE_BOTH;
     private int iBackup = BACKUP_WEEK;
@@ -159,6 +171,16 @@ public class D2Project {
         }
         Collections.sort(iSharedStashList);
 
+        iStashSortRules.clear();
+        iStashSortRules.putAll(StashSortRule.load(lLoadProperties));
+
+        iStashColumns.clear();
+        iStashColumns.putAll(StashColumn.load(lLoadProperties));
+
+        iCharFolders.load(lLoadProperties);
+        iStashFolders.load(lLoadProperties);
+        iSharedStashFolders.load(lLoadProperties);
+        iStashesNotInAll.load(lLoadProperties);
 
         if (lNew) {
             iBank = 0;
@@ -328,6 +350,89 @@ public class D2Project {
         return iSharedStashList;
     }
 
+    /**
+     * The user's folders in the project tree under Characters.
+     */
+    public ProjectFolders getCharFolders() {
+        return iCharFolders;
+    }
+
+    /**
+     * The user's folders in the project tree under Stashes (ATMA stashes).
+     */
+    public ProjectFolders getStashFolders() {
+        return iStashFolders;
+    }
+
+    /**
+     * The user's folders in the project tree under Shared Stashes.
+     */
+    public ProjectFolders getSharedStashFolders() {
+        return iSharedStashFolders;
+    }
+
+    /**
+     * False for an ATMA stash the user has left out of the All view; true for everything else.
+     */
+    public boolean isInAllView(String pFileName) {
+        return !iStashesNotInAll.isExcluded(pFileName);
+    }
+
+    /**
+     * Shows an ATMA stash in the All view or leaves it out. Returns true when this changed anything.
+     */
+    public boolean setInAllView(String pStashFileName, boolean pInAllView) {
+        return iStashesNotInAll.setExcluded(pStashFileName, !pInAllView);
+    }
+
+    /**
+     * The characters and ATMA stashes the All view shows: all characters, then the stashes not left out.
+     */
+    public List<String> getAllViewFiles() {
+        List<String> lFiles = new ArrayList<>();
+        for (Object lChar : iCharList) lFiles.add((String) lChar);
+        lFiles.addAll(iStashesNotInAll.keep(iStashList));
+        return lFiles;
+    }
+
+    public List<StashSortRule> getStashSortRules(String pStashFileName) {
+        return new ArrayList<>(iStashSortRules.getOrDefault(pStashFileName, Collections.emptyList()));
+    }
+
+    public void setStashSortRules(String pStashFileName, List<StashSortRule> pRules) {
+        iStashSortRules.put(pStashFileName, new ArrayList<>(pRules));
+    }
+
+    /**
+     * The item table columns chosen for one ATMA stash view ("all" for the All Stashes view), or the default columns.
+     */
+    public List<StashColumn> getStashColumns(String pStashFileName) {
+        return new ArrayList<>(iStashColumns.getOrDefault(pStashFileName, StashColumn.DEFAULT_COLUMNS));
+    }
+
+    /**
+     * Sets the item table columns of one ATMA stash view; an empty list or the default columns go back to the default.
+     */
+    public void setStashColumns(String pStashFileName, List<StashColumn> pColumns) {
+        if (pColumns.isEmpty() || pColumns.equals(StashColumn.DEFAULT_COLUMNS)) {
+            iStashColumns.remove(pStashFileName);
+        } else {
+            iStashColumns.put(pStashFileName, new ArrayList<>(pColumns));
+        }
+    }
+
+    /**
+     * Sorting rules of the project's ATMA stashes that have any, in project stash order.
+     */
+    public Map<String, List<StashSortRule>> getAllStashSortRules() {
+        Map<String, List<StashSortRule>> lRules = new LinkedHashMap<>();
+        for (Object lStash : iStashList) {
+            List<StashSortRule> lStashRules = iStashSortRules.get(lStash);
+            if (lStashRules != null && !lStashRules.isEmpty()) lRules.put((String) lStash, new ArrayList<>(lStashRules));
+        }
+        return lRules;
+    }
+
     public void addChar(String pCharFileName) {
         if (!iCharList.contains(pCharFileName)) {
             iCharList.add(pCharFileName);
@@ -367,6 +472,12 @@ public class D2Project {
         iCharList.remove(pFilename);
         iStashList.remove(pFilename);
         iSharedStashList.remove(pFilename);
+        iStashSortRules.remove(pFilename);
+        iStashColumns.remove(pFilename);
+        iCharFolders.removeFile(pFilename);
+        iStashFolders.removeFile(pFilename);
+        iSharedStashFolders.removeFile(pFilename);
+        iStashesNotInAll.removeFile(pFilename);
         iFileManager.closeFileName(pFilename);
         iFileManager.getViewProject().refreshTreeModel(false, false, false);
 //		D2ItemListAll lListAll = iFileManager.getAllItemList();
@@ -431,6 +542,12 @@ public class D2Project {
         for (int i = 0; i < iSharedStashList.size(); i++) {
             lSaveProperties.put("sharedstash." + i, iSharedStashList.get(i));
         }
+        StashSortRule.save(iStashSortRules, lSaveProperties);
+        StashColumn.save(iStashColumns, lSaveProperties);
+        iCharFolders.save(lSaveProperties, iCharList);
+        iStashFolders.save(lSaveProperties, iStashList);
+        iSharedStashFolders.save(lSaveProperties, iSharedStashList);
+        iStashesNotInAll.save(lSaveProperties, iStashList);
 
         lSaveProperties.put("bank", Integer.toString(iBank));
         lSaveProperties.put("type", Integer.toString(iType));

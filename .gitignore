@@ -188,3 +188,9 @@ gradle-app.setting
 
 #GoMule specific
 GoMule/projects/*
+/projects/d2r3/row/GoMule/*.d2x
+/projects/d2r3/row/GoMule/GoMule.backup/*
+/.idea/*
+/projects/d2r3/row/GoMule/project.properties
+/projects/projects.properties
+/projects/d2r3/row/workspace.properties

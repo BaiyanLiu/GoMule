@@ -129,6 +129,31 @@ public class D2SharedStashWriterTest {
         runTest(bitReader.getFileContent().clone(), stash, bitReader.getFileContent().clone(), ROW);
     }
 
+    @Test
+    public void rowStashWithGoldOnMultiplePanes_roundTrip() throws Exception {
+        D2BitReader bitReader = new D2BitReader(loadTestResources("sharedStashFiles", "modernGold.d2i").getAbsolutePath());
+        D2SharedStash stash =
+                new D2SharedStashReader().readStash(ROW, "ModernSharedStashSoftCoreV2.d2i", bitReader);
+        runTest(bitReader.getFileContent().clone(), stash, bitReader.getFileContent().clone(), ROW);
+    }
+
+    @Test
+    public void writeGoldOnSecondPane() throws Exception {
+        byte[] simpleStash = BaseEncoding.base16().decode(EMPTY_STASH + EMPTY_STASH + EMPTY_STASH);
+        D2SharedStash stash = new D2SharedStash(EXPANSION,
+                "",
+                asList(
+                        D2SharedStashPane.fromItems(emptyList(), 2_500_000),
+                        D2SharedStashPane.fromItems(emptyList(), 51_470),
+                        D2SharedStashPane.fromItems(emptyList(), 0)),
+                simpleStash);
+        byte[] expected = BaseEncoding.base16().decode(
+                EMPTY_STASH.replaceFirst("69000000000000004400", "69000000A02526004400")
+                        + EMPTY_STASH.replaceFirst("69000000000000004400", "690000000EC900004400")
+                        + EMPTY_STASH);
+        runTest(simpleStash, stash, expected);
+    }
+
     private void runTest(byte[] originalStashBytes, D2SharedStash stash, byte[] expected) throws Exception {
         runTest(originalStashBytes, stash, expected, EXPANSION);
     }

@@ -22,13 +22,24 @@
 package gomule.gui;
 
 import gomule.util.D2Project;
+import gomule.util.ProjectFolders;
 
 import javax.swing.*;
 import javax.swing.tree.*;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.*;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class D2ViewProject extends JPanel {
     /**
@@ -44,6 +55,10 @@ public class D2ViewProject extends JPanel {
     private DefaultMutableTreeNode iStashes;
     private DefaultMutableTreeNode iSharedStashes;
     private CharTreeNode iAll;
+    private boolean iShowingDropTarget = false;
+    private TreePath iSelectionBeforeDrag;
+    /** Keys (see nodeKey) of nodes to expand on the next rebuild of the tree, besides those open now. */
+    private final Set<String> iExpandNext = new HashSet<>();
 
     public D2ViewProject(D2FileManager pFileManager) {
         iFileManager = pFileManager;
@@ -74,14 +89,23 @@ public class D2ViewProject extends JPanel {
                 Component lRenderer = super.getTreeCellRendererComponent(pTree, pValue, pSel,
                         pExpanded, pLeaf, pRow, pHasFocus);
 
+                setToolTipText(null);
+                setFont(pTree.getFont());
                 if (pValue instanceof CharTreeNode) {
                     CharTreeNode lNode = (CharTreeNode) pValue;
                     lRenderer.setForeground(lNode.getForeGround());
+                    if (lNode.isLeftOutOfAll()) {
+                        // Italic marks a stash left out of the All view.
+                        setFont(pTree.getFont().deriveFont(Font.ITALIC));
+                        setToolTipText("Not shown in the All view");
+                    }
                 }
 
                 return lRenderer;
             }
         });
+
+        ToolTipManager.sharedInstance().registerComponent(iTree);
 
         JScrollPane lScroll = new JScrollPane(iTree);
         add(lScroll, BorderLayout.CENTER);
@@ -131,6 +155,8 @@ public class D2ViewProject extends JPanel {
                             Object lLast = lPathObjects[lPathObjects.length - 1];
                             if (lLast instanceof CharTreeNode) {
                                 ((CharTreeNode) lLast).startMenu(e.getX(), e.getY());
+                            } else if (lLast instanceof FolderTreeNode) {
+                                startFolderMenu((FolderTreeNode) lLast, e.getX(), e.getY());
                             }
                         }
                     }
@@ -156,6 +182,8 @@ public class D2ViewProject extends JPanel {
                         Object lLast = lPathObjects[lPathObjects.length - 1];
                         if (lLast instanceof CharTreeNode) {
                             ((CharTreeNode) lLast).remove();
+                        } else if (lLast instanceof FolderTreeNode && !((FolderTreeNode) lLast).isSection()) {
+                            deleteFolder((FolderTreeNode) lLast);
                         }
                     }
                 } else if (e.getModifiers() == KeyEvent.ALT_MASK) {
@@ -193,6 +221,13 @@ public class D2ViewProject extends JPanel {
                 }
             }
         });
+        installFolderDragAndDrop();
+    }
+
+    private void installFolderDragAndDrop() {
+        iTree.setDragEnabled(true);
+        iTree.setDropMode(DropMode.ON);
+        iTree.setTransferHandler(new FolderTransferHandler());
     }
 
     private static String getCharStr(String pFileName) {
@@ -249,14 +284,64 @@ public class D2ViewProject extends JPanel {
     }
 
     private CharTreeNode searchSingleNode(DefaultMutableTreeNode pTreeNode, String pFileName) {
-        for (int i = 0; i < pTreeNode.getChildCount(); i++) {
-            CharTreeNode lNode = (CharTreeNode) pTreeNode.getChildAt(i);
-            if (lNode.getFilename().equalsIgnoreCase(pFileName)) {
-                return lNode;
+        Enumeration<?> lNodes = pTreeNode.depthFirstEnumeration();
+        while (lNodes.hasMoreElements()) {
+            Object lNode = lNodes.nextElement();
+            if (lNode instanceof CharTreeNode && ((CharTreeNode) lNode).getFilename().equalsIgnoreCase(pFileName)) {
+                return (CharTreeNode) lNode;
             }
         }
         System.err.println("D2ViewProject.searchNode() Not Found " + pFileName);
         return null;
+    }
+
+    /**
+     * Returns the file name of the ATMA (.d2x) stash shown under the given point,
+     * or null when the point is not over a stash in the tree.
+     */
+    public String getStashFileAt(Component pSource, Point pPoint) {
+        if (!iTree.isShowing() || !pSource.isShowing()) {
+            return null;
+        }
+        Point lPoint = SwingUtilities.convertPoint(pSource, pPoint, iTree);
+        if (!iTree.getVisibleRect().contains(lPoint)) {
+            return null;
+        }
+        TreePath lPath = iTree.getPathForLocation(lPoint.x, lPoint.y);
+        if (lPath == null || !(lPath.getLastPathComponent() instanceof CharTreeNode)) {
+            return null;
+        }
+        String lFileName = ((CharTreeNode) lPath.getLastPathComponent()).getFilename();
+        return lFileName.toLowerCase().endsWith(".d2x") ? lFileName : null;
+    }
+
+    /**
+     * Highlights the stash an item is being dragged onto (null for none).
+     */
+    public void showDropTarget(String pStashFileName) {
+        if (!iShowingDropTarget) {
+            iSelectionBeforeDrag = iTree.getSelectionPath();
+            iShowingDropTarget = true;
+        }
+        CharTreeNode lNode = pStashFileName == null ? null : searchSingleNode(iStashes, pStashFileName);
+        if (lNode == null) {
+            iTree.clearSelection();
+        } else {
+            iTree.setSelectionPath(new TreePath(lNode.getPath()));
+        }
+    }
+
+    public void clearDropTarget() {
+        if (!iShowingDropTarget) {
+            return;
+        }
+        iShowingDropTarget = false;
+        if (iSelectionBeforeDrag != null) {
+            iTree.setSelectionPath(iSelectionBeforeDrag);
+        } else {
+            iTree.clearSelection();
+        }
+        iSelectionBeforeDrag = null;
     }
 
     public void setProject(D2Project pProject) {
@@ -265,81 +350,365 @@ public class D2ViewProject extends JPanel {
     }
 
     public void refreshTreeModel(boolean pExpandChar, boolean pExpandStash, boolean pExpandSharedStash) {
-        boolean lChar = false;
-        boolean lStash = false;
-        boolean lSharedStash = false;
-        for (int i = 0; i < iTree.getRowCount(); i++) {
-            TreePath lPath = iTree.getPathForRow(i);
-            Object lPathObjects[] = lPath.getPath();
-            if (lPathObjects.length > 1 && lPathObjects[lPathObjects.length - 1] == iChars) {
-                lChar = iTree.isExpanded(i);
-            }
-            if (lPathObjects.length > 1 && lPathObjects[lPathObjects.length - 1] == iStashes) {
-                lStash = iTree.isExpanded(i);
-            }
-            if (lPathObjects.length > 1 && lPathObjects[lPathObjects.length - 1] == iSharedStashes) {
-                lSharedStash = iTree.isExpanded(i);
+        Set<String> lExpand = new HashSet<>(iExpandNext);
+        iExpandNext.clear();
+        if (iTreeModel != null) {
+            Enumeration<TreePath> lOpen = iTree.getExpandedDescendants(new TreePath(iTreeModel.getRoot()));
+            while (lOpen != null && lOpen.hasMoreElements()) {
+                lExpand.add(nodeKey(lOpen.nextElement().getLastPathComponent()));
             }
         }
         iTreeModel = refreshTree();
         iTree.setModel(iTreeModel);
+        if (pExpandChar) lExpand.add(nodeKey(iChars));
+        if (pExpandStash) lExpand.add(nodeKey(iStashes));
+        if (pExpandSharedStash) lExpand.add(nodeKey(iSharedStashes));
+        // Rows below a row only appear once it is open, so going down the rows opens parents before children.
         for (int i = 0; i < iTree.getRowCount(); i++) {
-            TreePath lPath = iTree.getPathForRow(i);
-            Object lPathObjects[] = lPath.getPath();
-            if (lPathObjects.length > 1 && lPathObjects[lPathObjects.length - 1] == iChars) {
-                if (lChar || pExpandChar) {
-                    iTree.expandRow(i);
-                }
-            }
-            if (lPathObjects.length > 1 && lPathObjects[lPathObjects.length - 1] == iStashes) {
-                if (lStash || pExpandStash) {
-                    iTree.expandRow(i);
-                }
-            }
-            if (lPathObjects.length > 1 && lPathObjects[lPathObjects.length - 1] == iSharedStashes) {
-                if (lSharedStash || pExpandSharedStash) {
-                    iTree.expandRow(i);
-                }
+            if (lExpand.contains(nodeKey(iTree.getPathForRow(i).getLastPathComponent()))) {
+                iTree.expandRow(i);
             }
         }
+    }
+
+    /**
+     * Names a part or folder node in a way that survives rebuilding the tree; null for other nodes.
+     */
+    private static String nodeKey(Object pNode) {
+        if (pNode instanceof FolderTreeNode) {
+            FolderTreeNode lNode = (FolderTreeNode) pNode;
+            return lNode.getFolders().getPrefix() + ":" + lNode.getFolderPath();
+        }
+        return null;
     }
 
     private DefaultTreeModel refreshTree() {
         DefaultMutableTreeNode root = new DefaultMutableTreeNode("D2");
 
-//		DefaultMutableTreeNode parent;
-
-        iChars = new DefaultMutableTreeNode("characters");
-        root.add(iChars);
-        if (iProject != null) {
-            ArrayList lCharList = iProject.getCharList();
-            for (int i = 0; i < lCharList.size(); i++) {
-                iChars.add(new CharTreeNode((String) lCharList.get(i)));
-            }
-        }
-
-        iStashes = new DefaultMutableTreeNode("stashes");
-        root.add(iStashes);
-        if (iProject != null) {
-            ArrayList lStashList = iProject.getStashList();
-            for (int i = 0; i < lStashList.size(); i++) {
-                iStashes.add(new CharTreeNode((String) lStashList.get(i)));
-            }
-        }
-
-        iSharedStashes = new DefaultMutableTreeNode("sharedstashes");
-        root.add(iSharedStashes);
-        if (iProject != null) {
-            ArrayList lSharedStashList = iProject.getSharedStashList();
-            for (int i = 0; i < lSharedStashList.size(); i++) {
-                iSharedStashes.add(new CharTreeNode((String) lSharedStashList.get(i)));
-            }
-        }
+        iChars = addSection(root, "characters", iProject == null ? null : iProject.getCharFolders(),
+                iProject == null ? null : iProject.getCharList());
+        iStashes = addSection(root, "stashes", iProject == null ? null : iProject.getStashFolders(),
+                iProject == null ? null : iProject.getStashList());
+        iSharedStashes = addSection(root, "sharedstashes", iProject == null ? null : iProject.getSharedStashFolders(),
+                iProject == null ? null : iProject.getSharedStashList());
 
         iAll = new CharTreeNode("All");
         root.add(iAll);
 
-        return new DefaultTreeModel(root);
+        // Ask each node whether it may hold children, so an empty folder still shows as a folder.
+        return new DefaultTreeModel(root, true);
+    }
+
+    /**
+     * Adds a part of the tree (Characters, Stashes, Shared Stashes) with its folders, each folder's
+     * subfolders first, then its files.
+     */
+    private FolderTreeNode addSection(DefaultMutableTreeNode pRoot, String pLabel, ProjectFolders pFolders, List<?> pFiles) {
+        FolderTreeNode lSection = new FolderTreeNode(pLabel, pFolders == null ? new ProjectFolders("") : pFolders, ProjectFolders.TOP);
+        pRoot.add(lSection);
+        if (pFolders == null) {
+            return lSection;
+        }
+        Map<String, FolderTreeNode> lFolderNodes = new HashMap<>();
+        lFolderNodes.put(ProjectFolders.TOP, lSection);
+        for (String lPath : pFolders.getFolders()) {
+            FolderTreeNode lNode = new FolderTreeNode(ProjectFolders.getName(lPath), pFolders, lPath);
+            lFolderNodes.getOrDefault(ProjectFolders.getParent(lPath), lSection).add(lNode);
+            lFolderNodes.put(lPath, lNode);
+        }
+        for (Object lFile : pFiles) {
+            String lFileName = (String) lFile;
+            lFolderNodes.getOrDefault(pFolders.getFolderOf(lFileName), lSection).add(new CharTreeNode(lFileName));
+        }
+        return lSection;
+    }
+
+    private void folderChanged() {
+        iProject.saveProject();
+        refreshTreeModel(false, false, false);
+    }
+
+    private void startFolderMenu(FolderTreeNode pNode, int pX, int pY) {
+        if (iProject == null) {
+            return;
+        }
+        JPopupMenu lMenu = new JPopupMenu();
+        JMenuItem lNew = new JMenuItem(pNode.isSection() ? "New folder..." : "New subfolder...");
+        lNew.addActionListener(e -> newFolder(pNode));
+        lMenu.add(lNew);
+        if (!pNode.isSection()) {
+            JMenuItem lRename = new JMenuItem("Rename folder...");
+            lRename.addActionListener(e -> renameFolder(pNode));
+            lMenu.add(lRename);
+            JMenuItem lDelete = new JMenuItem("Delete folder");
+            lDelete.setToolTipText("What is in the folder moves up a level; nothing is removed from the project");
+            lDelete.addActionListener(e -> deleteFolder(pNode));
+            lMenu.add(lDelete);
+        }
+        if (pNode.getFolders() == iProject.getStashFolders()) {
+            List<String> lStashes = getStashesIn(pNode);
+            if (!lStashes.isEmpty()) {
+                lMenu.addSeparator();
+                JMenuItem lShow = new JMenuItem("Show these stashes in All");
+                lShow.setEnabled(lStashes.stream().anyMatch(lStash -> !iProject.isInAllView(lStash)));
+                lShow.addActionListener(e -> setInAllView(lStashes, true));
+                lMenu.add(lShow);
+                JMenuItem lHide = new JMenuItem("Leave these stashes out of All");
+                lHide.setEnabled(lStashes.stream().anyMatch(iProject::isInAllView));
+                lHide.addActionListener(e -> setInAllView(lStashes, false));
+                lMenu.add(lHide);
+            }
+        }
+        lMenu.show(iTree, pX, pY);
+    }
+
+    /**
+     * The ATMA stashes in a Stashes folder and all its subfolders (every stash for the Stashes node itself).
+     */
+    private List<String> getStashesIn(FolderTreeNode pNode) {
+        List<String> lStashes = new ArrayList<>();
+        for (Object lStash : iProject.getStashList()) {
+            if (pNode.isSection()
+                    || ProjectFolders.isInside(iProject.getStashFolders().getFolderOf((String) lStash), pNode.getFolderPath())) {
+                lStashes.add((String) lStash);
+            }
+        }
+        return lStashes;
+    }
+
+    /**
+     * Shows ATMA stashes in the All view or leaves them out, saves the project and updates an open All view.
+     */
+    private void setInAllView(List<String> pStashes, boolean pInAllView) {
+        boolean lChanged = false;
+        for (String lStash : pStashes) {
+            if (iProject.setInAllView(lStash, pInAllView)) {
+                lChanged = true;
+                iFileManager.allViewChanged(lStash);
+            }
+        }
+        if (lChanged) {
+            iProject.saveProject();
+            iTree.repaint();
+        }
+    }
+
+    private void newFolder(FolderTreeNode pParent) {
+        String lName = askFolderName("New folder", "");
+        if (lName == null) {
+            return;
+        }
+        String lPath = pParent.getFolders().addFolder(pParent.getFolderPath(), lName);
+        if (lPath == null) {
+            folderNameTaken(lName);
+            return;
+        }
+        iExpandNext.add(nodeKey(pParent));
+        folderChanged();
+    }
+
+    private void renameFolder(FolderTreeNode pNode) {
+        String lName = askFolderName("Rename folder", ProjectFolders.getName(pNode.getFolderPath()));
+        if (lName == null) {
+            return;
+        }
+        boolean lWasOpen = iTree.isExpanded(new TreePath(pNode.getPath()));
+        String lPath = pNode.getFolders().renameFolder(pNode.getFolderPath(), lName);
+        if (lPath == null) {
+            folderNameTaken(lName);
+            return;
+        }
+        if (lWasOpen) {
+            iExpandNext.add(pNode.getFolders().getPrefix() + ":" + lPath);
+        }
+        folderChanged();
+    }
+
+    private void deleteFolder(FolderTreeNode pNode) {
+        if (iProject == null) {
+            return;
+        }
+        if (pNode.getChildCount() > 0) {
+            int lAnswer = JOptionPane.showConfirmDialog(iTree,
+                    "Delete the folder \"" + ProjectFolders.getName(pNode.getFolderPath()) + "\"?\n"
+                            + "What is in it moves up a level. Nothing is removed from the project.",
+                    "Delete folder", JOptionPane.OK_CANCEL_OPTION);
+            if (lAnswer != JOptionPane.OK_OPTION) {
+                return;
+            }
+        }
+        pNode.getFolders().deleteFolder(pNode.getFolderPath());
+        folderChanged();
+    }
+
+    private String askFolderName(String pTitle, String pCurrent) {
+        while (true) {
+            Object lAnswer = JOptionPane.showInputDialog(iTree, "Folder name:", pTitle,
+                    JOptionPane.PLAIN_MESSAGE, null, null, pCurrent);
+            if (lAnswer == null) {
+                return null;
+            }
+            String lName = ProjectFolders.cleanName(lAnswer.toString());
+            if (lName != null) {
+                return lName;
+            }
+            JOptionPane.showMessageDialog(iTree, "A folder name can't be empty or contain \"" + ProjectFolders.SEPARATOR + "\".",
+                    pTitle, JOptionPane.WARNING_MESSAGE);
+            pCurrent = lAnswer.toString();
+        }
+    }
+
+    private void folderNameTaken(String pName) {
+        JOptionPane.showMessageDialog(iTree, "There is already a folder named \"" + pName + "\" there.",
+                "Folder", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private FolderTreeNode getSection(DefaultMutableTreeNode pNode) {
+        for (TreeNode lNode = pNode; lNode != null; lNode = lNode.getParent()) {
+            if (lNode instanceof FolderTreeNode && ((FolderTreeNode) lNode).isSection()) {
+                return (FolderTreeNode) lNode;
+            }
+        }
+        return null;
+    }
+
+    private static FolderTreeNode findFolderNode(FolderTreeNode pSection, String pPath) {
+        Enumeration<?> lNodes = pSection.breadthFirstEnumeration();
+        while (lNodes.hasMoreElements()) {
+            Object lNode = lNodes.nextElement();
+            if (lNode instanceof FolderTreeNode && ((FolderTreeNode) lNode).getFolderPath().equals(pPath)) {
+                return (FolderTreeNode) lNode;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Moves a file or folder into a folder (or a part's top level). Returns false when it can't go there.
+     */
+    private boolean moveInto(DefaultMutableTreeNode pMoved, FolderTreeNode pTarget) {
+        if (iProject == null || pTarget == null || getSection(pMoved) != getSection(pTarget)) {
+            return false;
+        }
+        ProjectFolders lFolders = pTarget.getFolders();
+        boolean lMoved;
+        if (pMoved instanceof CharTreeNode) {
+            lMoved = lFolders.moveFile(((CharTreeNode) pMoved).getFilename(), pTarget.getFolderPath());
+        } else if (pMoved instanceof FolderTreeNode && !((FolderTreeNode) pMoved).isSection()) {
+            lMoved = lFolders.moveFolder(((FolderTreeNode) pMoved).getFolderPath(), pTarget.getFolderPath()) != null;
+        } else {
+            lMoved = false;
+        }
+        if (lMoved) {
+            iExpandNext.add(nodeKey(pTarget));
+            folderChanged();
+        }
+        return lMoved;
+    }
+
+    /**
+     * A part of the tree (Characters, Stashes, Shared Stashes) or one of the user's folders in it.
+     */
+    private static class FolderTreeNode extends DefaultMutableTreeNode {
+        private static final long serialVersionUID = 1L;
+        private final ProjectFolders iFolders;
+        private final String iPath;
+
+        FolderTreeNode(String pLabel, ProjectFolders pFolders, String pPath) {
+            super(pLabel, true);
+            iFolders = pFolders;
+            iPath = pPath;
+        }
+
+        ProjectFolders getFolders() {
+            return iFolders;
+        }
+
+        String getFolderPath() {
+            return iPath;
+        }
+
+        boolean isSection() {
+            return iPath.isEmpty();
+        }
+    }
+
+    /**
+     * Drag a character, stash or folder onto a folder (or a file in it, or the part's own node) to move it
+     * there. Only within the same part of the tree.
+     */
+    private class FolderTransferHandler extends TransferHandler {
+        private static final long serialVersionUID = 1L;
+        private DefaultMutableTreeNode iDragged;
+
+        @Override
+        public int getSourceActions(JComponent pComponent) {
+            return MOVE;
+        }
+
+        @Override
+        protected Transferable createTransferable(JComponent pComponent) {
+            TreePath lPath = iTree.getSelectionPath();
+            iDragged = null;
+            if (lPath == null) {
+                return null;
+            }
+            Object lNode = lPath.getLastPathComponent();
+            if ((lNode instanceof CharTreeNode && lNode != iAll)
+                    || (lNode instanceof FolderTreeNode && !((FolderTreeNode) lNode).isSection())) {
+                iDragged = (DefaultMutableTreeNode) lNode;
+                return new StringSelection(lNode.toString());
+            }
+            return null;
+        }
+
+        @Override
+        protected void exportDone(JComponent pSource, Transferable pData, int pAction) {
+            iDragged = null;
+        }
+
+        private FolderTreeNode getTarget(TransferSupport pSupport) {
+            if (!pSupport.isDrop() || iDragged == null) {
+                return null;
+            }
+            TreePath lPath = ((JTree.DropLocation) pSupport.getDropLocation()).getPath();
+            if (lPath == null) {
+                return null;
+            }
+            Object lNode = lPath.getLastPathComponent();
+            if (lNode instanceof CharTreeNode) {
+                lNode = ((CharTreeNode) lNode).getParent();
+            }
+            if (!(lNode instanceof FolderTreeNode) || getSection(iDragged) != getSection((FolderTreeNode) lNode)) {
+                return null;
+            }
+            FolderTreeNode lTarget = (FolderTreeNode) lNode;
+            if (iDragged instanceof FolderTreeNode
+                    && ProjectFolders.isInside(lTarget.getFolderPath(), ((FolderTreeNode) iDragged).getFolderPath())) {
+                return null;
+            }
+            return lTarget;
+        }
+
+        @Override
+        public boolean canImport(TransferSupport pSupport) {
+            if (!pSupport.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+                return false;
+            }
+            return getTarget(pSupport) != null;
+        }
+
+        @Override
+        public boolean importData(TransferSupport pSupport) {
+            FolderTreeNode lTarget = getTarget(pSupport);
+            DefaultMutableTreeNode lDragged = iDragged;
+            if (lTarget == null || lDragged == null) {
+                return false;
+            }
+            // Rebuild the tree after the drag has finished, not in the middle of it.
+            SwingUtilities.invokeLater(() -> moveInto(lDragged, lTarget));
+            return true;
+        }
     }
 
     private class CharTreeNode extends DefaultMutableTreeNode {
@@ -353,7 +722,7 @@ public class D2ViewProject extends JPanel {
         private boolean iFileOpened = false;
 
         public CharTreeNode(String pFileName) {
-            super(getCharStr(pFileName));
+            super(getCharStr(pFileName), false);
             iFileName = pFileName;
 
             if (!iFileName.toLowerCase().equals("all")) {
@@ -370,7 +739,8 @@ public class D2ViewProject extends JPanel {
 
         public void itemListRead() {
             iItemListRead = true;
-            iForeGround = new Color(0, 150, 0);
+            Color lOpenColor = UIManager.getColor("GoMule.projectTree.openForeground");
+            iForeGround = lOpenColor != null ? lOpenColor : new Color(0, 150, 0);
         }
 
         public void itemListClosed() {
@@ -388,6 +758,13 @@ public class D2ViewProject extends JPanel {
 
         public Color getForeGround() {
             return iForeGround;
+        }
+
+        /**
+         * True for an ATMA stash the user has left out of the All view.
+         */
+        boolean isLeftOutOfAll() {
+            return iProject != null && iFileName.toLowerCase().endsWith(".d2x") && !iProject.isInAllView(iFileName);
         }
 
         public void view() {
@@ -454,6 +831,40 @@ public class D2ViewProject extends JPanel {
                     lMenu.add(lOpen);
                     lOpen.addActionListener(new ActionNodeView(this));
                 }
+            }
+
+            if (iFileName.toLowerCase().endsWith(".d2x")) {
+                JMenuItem lSortRules = new JMenuItem("Sorting rules...");
+                lMenu.add(lSortRules);
+                lSortRules.addActionListener(e -> StashSortRulesDialog.showFor(iTree, iProject, iFileName));
+
+                JCheckBoxMenuItem lInAll = new JCheckBoxMenuItem("Show in All", iProject.isInAllView(iFileName));
+                lInAll.setToolTipText("Untick to leave this stash's items out of the All view");
+                lMenu.add(lInAll);
+                lInAll.addActionListener(e -> setInAllView(Collections.singletonList(iFileName), lInAll.isSelected()));
+            }
+
+            if (iFileName.toLowerCase().endsWith(".d2x") || iFileName.toLowerCase().endsWith(".d2i")) {
+                JMenuItem lRestore = new JMenuItem("Restore from backup...");
+                lMenu.add(lRestore);
+                lRestore.addActionListener(e -> RestoreBackupDialog.showFor(iTree, iFileManager, iFileName));
+            }
+
+            FolderTreeNode lSection = getSection(this);
+            if (lSection != null && !lSection.getFolders().getFolders().isEmpty()) {
+                JMenu lMoveTo = new JMenu("Move to folder");
+                String lCurrent = lSection.getFolders().getFolderOf(iFileName);
+                JMenuItem lTop = new JMenuItem("(top level)");
+                lTop.setEnabled(!lCurrent.isEmpty());
+                lTop.addActionListener(e -> moveInto(this, lSection));
+                lMoveTo.add(lTop);
+                for (String lPath : lSection.getFolders().getFolders()) {
+                    JMenuItem lFolder = new JMenuItem(lPath.replace(ProjectFolders.SEPARATOR, " / "));
+                    lFolder.setEnabled(!lPath.equals(lCurrent));
+                    lFolder.addActionListener(e -> moveInto(this, findFolderNode(lSection, lPath)));
+                    lMoveTo.add(lFolder);
+                }
+                lMenu.add(lMoveTo);
             }
 
             JMenuItem lRemove = new JMenuItem("Remove from project");

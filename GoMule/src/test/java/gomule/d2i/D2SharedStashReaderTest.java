@@ -60,6 +60,19 @@ public class D2SharedStashReaderTest {
     }
 
     @Test
+    public void rowStashWithGoldOnMultiplePanes() throws Exception {
+        D2BitReader bitReader = new D2BitReader(loadTestResources("sharedStashFiles", "modernGold.d2i").getAbsolutePath());
+        D2SharedStash stash =
+                new D2SharedStashReader().readStash(ROW, "ModernSharedStashSoftCoreV2.d2i", bitReader);
+        assertEquals(2_500_000, stash.getPane(0).getGold());
+        assertEquals(51_470, stash.getPane(1).getGold());
+        assertEquals(0, stash.getPane(2).getGold());
+        assertEquals(0, stash.getPane(3).getGold());
+        assertEquals(0, stash.getPane(4).getGold());
+        assertEquals(2_551_470, stash.getTotalGold());
+    }
+
+    @Test
     public void simpleRowStash() throws Exception {
         D2BitReader bitReader = new D2BitReader(loadTestResources("sharedStashFiles", "modern.d2i").getAbsolutePath());
         D2SharedStash stash =

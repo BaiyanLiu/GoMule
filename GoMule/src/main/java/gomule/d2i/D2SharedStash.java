@@ -31,6 +31,10 @@ public class D2SharedStash extends D2ItemListAdapter {
         return panes;
     }
 
+    public int getTotalGold() {
+        return panes.stream().mapToInt(D2SharedStashPane::getGold).sum();
+    }
+
     @Override
     public boolean containsItem(D2Item pItem) {
         return panes.stream().anyMatch(it -> it.items.contains(pItem));
@@ -85,6 +89,7 @@ public class D2SharedStash extends D2ItemListAdapter {
 
     @Override
     protected void saveInternal(D2Project d2Project) {
+        D2Backup.writeBak(iFileName);
         if (d2Project != null) D2Backup.backup(d2Project, iFileName, new D2BitReader(originalContent.clone()));
         sharedStashWriter.write(this);
         setModified(false);
