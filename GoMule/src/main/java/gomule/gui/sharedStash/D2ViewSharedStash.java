@@ -1,6 +1,7 @@
 package gomule.gui.sharedStash;
 
 import gomule.d2i.D2SharedStash;
+import gomule.d2i.SharedStashSorter;
 import gomule.gui.D2FileManager;
 import gomule.gui.D2ItemContainer;
 import gomule.gui.D2ItemList;
@@ -10,13 +11,19 @@ import gomule.model.VersionController;
 import javax.swing.*;
 import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
+import java.awt.*;
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
 
 public class D2ViewSharedStash extends JInternalFrame implements D2ItemContainer, D2ItemListListener {
     private final D2FileManager fileManager;
     private final String sharedStashFilename;
     private final SharedStashPanel sharedStashPanel;
+    private final JButton revertSortButton = new JButton("Revert last sort");
     private D2SharedStash sharedStash;
+    // what the last sort moved, kept until the shared stash is saved (or reverted)
+    private List<SharedStashSorter.MovedItem> lastSort = Collections.emptyList();
 
     public D2ViewSharedStash(D2FileManager fileManager, String sharedStashFilename) {
         super(sharedStashFilename, false, true, false, true);
@@ -31,7 +38,24 @@ public class D2ViewSharedStash extends JInternalFrame implements D2ItemContainer
         ToolTipManager.sharedInstance().setDismissDelay(40000);
         ToolTipManager.sharedInstance().setInitialDelay(300);
         sharedStashPanel = new SharedStashPanel(fileManager, this);
-        setContentPane(sharedStashPanel);
+        JButton sortButton = new JButton("Sort into ATMA stashes");
+        sortButton.setToolTipText("Move every item that matches one ATMA stash's sorting rules into that stash");
+        sortButton.addActionListener(e -> {
+            List<SharedStashSorter.MovedItem> moved = SharedStashSortAction.run(sharedStashPanel, fileManager);
+            if (!moved.isEmpty()) setLastSort(moved);
+        });
+        revertSortButton.setToolTipText("Put the items the last sort moved back into the shared stash (until you save)");
+        revertSortButton.setEnabled(false);
+        revertSortButton.addActionListener(e -> {
+            if (SharedStashSortAction.revert(sharedStashPanel, fileManager, lastSort)) setLastSort(Collections.emptyList());
+        });
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 2));
+        buttonPanel.add(sortButton);
+        buttonPanel.add(revertSortButton);
+        JPanel content = new JPanel(new BorderLayout());
+        content.add(sharedStashPanel, BorderLayout.CENTER);
+        content.add(buttonPanel, BorderLayout.SOUTH);
+        setContentPane(content);
         connect();
         setVisible(true);
         pack();
@@ -98,8 +122,15 @@ public class D2ViewSharedStash extends JInternalFrame implements D2ItemContainer
         itemListChanged();
     }
 
+    private void setLastSort(List<SharedStashSorter.MovedItem> moved) {
+        lastSort = moved;
+        revertSortButton.setEnabled(!lastSort.isEmpty());
+    }
+
     @Override
     public void itemListChanged() {
+        // saved (or reloaded): the sort is on disk now, so it can no longer be reverted here
+        if (sharedStash == null || !sharedStash.isModified()) setLastSort(Collections.emptyList());
         String lTitle;
         if (sharedStash == null) {
             lTitle = "Disconnected";

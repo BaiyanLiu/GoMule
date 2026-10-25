@@ -27,7 +27,9 @@ public class SharedStashPanel extends JPanel {
         setSize(BG_WIDTH, BG_HEIGHT);
         Dimension lSize = new Dimension(BG_WIDTH, BG_HEIGHT);
         setPreferredSize(lSize);
-        addMouseListener(new SharedStashPanelMouseClickHandler(this));
+        SharedStashPanelMouseClickHandler mouseClickHandler = new SharedStashPanelMouseClickHandler(this);
+        addMouseListener(mouseClickHandler);
+        addMouseMotionListener(mouseClickHandler);
         addMouseMotionListener(new SharedStashMouseMotionListener(this));
         setVisible(true);
         ToolTipManager.sharedInstance().setDismissDelay(40000);
@@ -55,7 +57,7 @@ public class SharedStashPanel extends JPanel {
             int y = getYCoordForRow(row);
             background.getGraphics().drawImage(image, x, y, this);
         });
-        background.getGraphics().drawString(Long.toString(getSharedStash().getPane(0).getGold()), 155, 439);
+        background.getGraphics().drawString(Long.toString(getSharedStash().getTotalGold()), 155, 439);
         background.getGraphics().drawString("Page " + (selectedStashPaneIndex + 1) + " / " + fileManager.getVariant().getSharedStashConfig().getItemStashPaneCount(), 152, 405);
     }
 
@@ -173,4 +175,4 @@ public class SharedStashPanel extends JPanel {
     public static boolean isInRightStashSelectArea(int x, int y) {
         return x >= 227 && x <= 250 && y >= 389 && y <= 412;
     }
-}
+}

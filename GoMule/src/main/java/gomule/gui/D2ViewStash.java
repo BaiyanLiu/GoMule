@@ -22,6 +22,7 @@ package gomule.gui;
 
 import gomule.d2s.D2Character;
 import gomule.d2x.D2Stash;
+import gomule.d2x.StashColumn;
 import gomule.item.D2BodyLocations;
 import gomule.item.D2Item;
 import gomule.item.D2ItemRenderer;
@@ -63,6 +64,10 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
     private D2StashFilter iStashFilter;
     private D2ItemModel iItemModel;
     private JTable iTable;
+    private JSplitPane iStashSplit;
+    // the table panel was 321 wide, which cut off item names; it now grows to fit the chosen columns
+    private static final int TABLE_MIN_WIDTH = 420;
+    private static final int ITEM_TEXT_WIDTH = 313;
 
     private JPanel iContentPane;
 
@@ -114,6 +119,7 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
     private JRadioButton iCatMiscAll;
 
     private RandallPanel iRequerementFilter;
+    private JTextField iReqMinLvl;
     private JTextField iReqMaxLvl;
     private JTextField freeTextSearch;
     private JTextField iReqMaxStr;
@@ -191,27 +197,27 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
                 if (e.getSource() instanceof JTableHeader) {
                     JTableHeader lHeader = (JTableHeader) e.getSource();
                     int lHeaderCol = lHeader.columnAtPoint(new Point(e.getX(), e.getY()));
+                    // -1 when clicked right of the last column
+                    if (lHeaderCol != -1) lHeaderCol = lHeader.getColumnModel().getColumn(lHeaderCol).getModelIndex();
 
-                    lHeaderCol = lHeader.getColumnModel().getColumn(lHeaderCol).getModelIndex();
-
-                    if (lHeaderCol != -1) {
+                    if (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger()) {
+                        showColumnsMenu(lHeader, e.getX(), e.getY(), lHeaderCol);
+                    } else if (lHeaderCol != -1) {
                         iItemModel.sortCol(lHeaderCol);
                     }
                 }
             }
         });
+        iTable.getTableHeader().setToolTipText("Click to sort. Right-click to hide this column or choose columns.");
 
         iTable.setDefaultRenderer(String.class, new D2CellStringRenderer());
         iTable.getSelectionModel().setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        iTable.getColumnModel().getColumn(0).setPreferredWidth(175);
-        iTable.getColumnModel().getColumn(1).setPreferredWidth(14);
-        iTable.getColumnModel().getColumn(2).setPreferredWidth(14);
-        iTable.getColumnModel().getColumn(3).setPreferredWidth(19);
+        applyColumnWidths();
         JScrollPane lPane = new JScrollPane(iTable);
-        lPane.setPreferredSize(new Dimension(321, 125));
+        lPane.setPreferredSize(new Dimension(getTableWidth(), 125));
 
-        JSplitPane stashConts = new JSplitPane();
-        stashConts.setLeftComponent(lPane);
+        iStashSplit = new JSplitPane();
+        iStashSplit.setLeftComponent(lPane);
 
 //        iContentPane.add(lPane, BorderLayout.WEST);
 
@@ -223,6 +229,8 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         iRequerementFilter = new RandallPanel();
         freeTextSearch = new JTextField();
         freeTextSearch.getDocument().addDocumentListener(iStashFilter);
+        iReqMinLvl = new JTextField();
+        iReqMinLvl.getDocument().addDocumentListener(iStashFilter);
         iReqMaxLvl = new JTextField();
         iReqMaxLvl.getDocument().addDocumentListener(iStashFilter);
         iReqMaxStr = new JTextField();
@@ -238,15 +246,17 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
         });
 
-        iRequerementFilter.addToPanel(new JLabel("Contains"), 0, 0, 1, RandallPanel.NONE);
-        iRequerementFilter.addToPanel(freeTextSearch, 1, 0, 1, RandallPanel.HORIZONTAL);
-        iRequerementFilter.addToPanel(new JLabel("MaxLvl"), 2, 0, 1, RandallPanel.NONE);
-        iRequerementFilter.addToPanel(iReqMaxLvl, 3, 0, 1, RandallPanel.HORIZONTAL);
-        iRequerementFilter.addToPanel(new JLabel("MaxStr"), 4, 0, 1, RandallPanel.NONE);
-        iRequerementFilter.addToPanel(iReqMaxStr, 5, 0, 1, RandallPanel.HORIZONTAL);
-        iRequerementFilter.addToPanel(new JLabel("MaxDex"), 6, 0, 1, RandallPanel.NONE);
-        iRequerementFilter.addToPanel(iReqMaxDex, 7, 0, 1, RandallPanel.HORIZONTAL);
-        iRequerementFilter.addToPanel(iCusFilter, 8, 0, 1, RandallPanel.HORIZONTAL);
+        iRequerementFilter.addToPanel(new JLabel("Contains"), 0, 0, 1, 1, RandallPanel.NONE, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(freeTextSearch, 1, 0, 1, 1, RandallPanel.HORIZONTAL, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(new JLabel("MinLvl"), 2, 0, 1, 1, RandallPanel.NONE, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(iReqMinLvl, 3, 0, 1, 1, RandallPanel.HORIZONTAL, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(new JLabel("MaxLvl"), 4, 0, 1, 1, RandallPanel.NONE, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(iReqMaxLvl, 5, 0, 1, 1, RandallPanel.HORIZONTAL, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(new JLabel("MaxStr"), 6, 0, 1, 1, RandallPanel.NONE, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(iReqMaxStr, 7, 0, 1, 1, RandallPanel.HORIZONTAL, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(new JLabel("MaxDex"), 8, 0, 1, 1, RandallPanel.NONE, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(iReqMaxDex, 9, 0, 1, 1, RandallPanel.HORIZONTAL, GridBagConstraints.WEST);
+        iRequerementFilter.addToPanel(iCusFilter, 10, 0, 1, RandallPanel.HORIZONTAL);
 
         RandallPanel lTopPanel = new RandallPanel();
         lTopPanel.addToPanel(lButtonPanel, 0, 0, 1, RandallPanel.HORIZONTAL);
@@ -262,7 +272,7 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         iItemText = new JEditorPane();
         iItemText.setContentType("text/html");
 
-        Color bgColor = BLACK;
+        Color bgColor = itemTextBackground();
         UIDefaults defaults = new UIDefaults();
         defaults.put("EditorPane[Enabled].backgroundPainter", bgColor);
         iItemText.putClientProperty("Nimbus.Overrides", defaults);
@@ -272,18 +282,18 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         JScrollPane lItemScroll = new JScrollPane(iItemText);
         lItemPanel.setLayout(new BorderLayout());
         lItemPanel.add(lItemScroll, BorderLayout.CENTER);
-        lItemPanel.setPreferredSize(new Dimension(313, 125));
+        lItemPanel.setPreferredSize(new Dimension(ITEM_TEXT_WIDTH, 125));
 
 //        iContentPane.add(lItemPanel, BorderLayout.CENTER);
 
-        stashConts.setRightComponent(lItemPanel);
-        stashConts.setDividerSize(3);
-        stashConts.setDividerLocation(321);
-        iContentPane.add(stashConts);
+        iStashSplit.setRightComponent(lItemPanel);
+        iStashSplit.setDividerSize(3);
+        iStashSplit.setDividerLocation(getTableWidth());
+        iContentPane.add(iStashSplit);
         setContentPane(iContentPane);
 
         pack();
-        setSize(643, 625);
+        setSize(getTableWidth() + ITEM_TEXT_WIDTH + 9, 625);
         setVisible(true);
 
 
@@ -336,6 +346,76 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         if (iTable.getRowCount() > 0) {
             iTable.setRowSelectionInterval(0, 0);
         }
+    }
+
+    /**
+     * Background behind item descriptions and pictures: black, or the Modern appearance's near-black.
+     */
+    public static Color itemTextBackground() {
+        Color lColor = UIManager.getColor("GoMule.itemText.background");
+        return lColor == null ? BLACK : lColor;
+    }
+
+    // shows the project's current column choice for this stash
+    private void showColumns() {
+        iItemModel.setColumns(iFileManager.getProject().getStashColumns(iFileName));
+        applyColumnWidths();
+    }
+
+    private void applyColumnWidths() {
+        for (int i = 0; i < iTable.getColumnModel().getColumnCount(); i++) {
+            int lModelIndex = iTable.getColumnModel().getColumn(i).getModelIndex();
+            iTable.getColumnModel().getColumn(i).setPreferredWidth(iItemModel.getColumn(lModelIndex).getPreferredWidth());
+        }
+    }
+
+    /**
+     * Width of the item table panel: room for every column at its preferred width, and at least TABLE_MIN_WIDTH.
+     */
+    private int getTableWidth() {
+        int lWidth = 0;
+        for (int i = 0; i < iTable.getColumnModel().getColumnCount(); i++) {
+            lWidth += iTable.getColumnModel().getColumn(i).getPreferredWidth();
+        }
+        // + vertical scroll bar and borders
+        return Math.max(TABLE_MIN_WIDTH, lWidth + 24);
+    }
+
+    // after choosing columns: grows the table panel and the window when the columns need more room, never shrinks them
+    private void widenForColumns() {
+        int lExtra = getTableWidth() - iStashSplit.getDividerLocation();
+        if (lExtra <= 0) return;
+        setSize(getWidth() + lExtra, getHeight());
+        iStashSplit.setDividerLocation(getTableWidth());
+    }
+
+    private void showColumnsMenu(Component pInvoker, int pX, int pY, int pModelCol) {
+        JPopupMenu lMenu = new JPopupMenu();
+        if (pModelCol != -1) {
+            StashColumn lColumn = iItemModel.getColumn(pModelCol);
+            JMenuItem lHide = new JMenuItem("Hide \"" + lColumn.getLabel() + "\" column");
+            // the table needs one column left
+            lHide.setEnabled(iItemModel.getColumnCount() > 1);
+            lHide.addActionListener(e -> {
+                List<StashColumn> lColumns = iFileManager.getProject().getStashColumns(iFileName);
+                lColumns.remove(lColumn);
+                iFileManager.getProject().setStashColumns(iFileName, lColumns);
+                iFileManager.getProject().saveProject();
+                showColumns();
+            });
+            lMenu.add(lHide);
+        }
+        JMenuItem lChoose = new JMenuItem("Choose columns...");
+        Point lClickedAt = new Point(pX, pY);
+        SwingUtilities.convertPointToScreen(lClickedAt, pInvoker);
+        lChoose.addActionListener(e -> {
+            if (StashColumnsDialog.showFor(iTable, iFileManager.getProject(), iFileName, lClickedAt)) {
+                showColumns();
+                widenForColumns();
+            }
+        });
+        lMenu.add(lChoose);
+        lMenu.show(pInvoker, pX, pY);
     }
 
     public static String getStashName(String pFileName) {
@@ -931,7 +1011,8 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
     }
 
     class D2ItemModel implements TableModel {
-        private final Object HEADER[] = new Object[]{new Object(), new Object(), new Object(), new Object(), new Object()};
+        private List<StashColumn> iColumns;
+        private final Map<D2Item, String> iItemDumps = new HashMap<>();
         private final ArrayList iCusFilterList = new ArrayList();
         //        private D2ItemList   iStash;
         private ArrayList iItems;
@@ -940,7 +1021,8 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
         public D2ItemModel() {
 //            iStash = pStash;
-            iSortList.add(HEADER[0]);
+            iColumns = iFileManager.getProject().getStashColumns(iFileName);
+            iSortList.add(iColumns.get(0));
             refreshData();
 
             // For now, 10 fixed filters
@@ -950,9 +1032,35 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         }
 
         public void sortCol(int pHeaderCol) {
-            iSortList.remove(HEADER[pHeaderCol]);
-            iSortList.add(0, HEADER[pHeaderCol]);
+            StashColumn lColumn = iColumns.get(pHeaderCol);
+            iSortList.remove(lColumn);
+            iSortList.add(0, lColumn);
             sort();
+        }
+
+        public StashColumn getColumn(int pCol) {
+            return iColumns.get(pCol);
+        }
+
+        public void setColumns(List<StashColumn> pColumns) {
+            iColumns = new ArrayList<>(pColumns);
+            iSortList.retainAll(iColumns);
+            if (iSortList.isEmpty()) {
+                iSortList.add(iColumns.get(0));
+            }
+            sort();
+            fireTableChanged(new TableModelEvent(this, TableModelEvent.HEADER_ROW));
+        }
+
+        private String getCellText(D2Item pItem, StashColumn pColumn) {
+            if (pColumn.getBuiltin() == StashColumn.Builtin.SOURCE) {
+                return isStash() ? iStashName : getStashName(((D2ItemListAll) iStash).getFilename(pItem));
+            }
+            if (!pColumn.isProperty()) {
+                return pColumn.getValue(pItem, null);
+            }
+            String lDump = iItemDumps.computeIfAbsent(pItem, lItem -> D2ItemRenderer.itemDump(lItem, true));
+            return pColumn.getValue(pItem, lDump);
         }
 
         public int getInteger(JTextField pTextfield) {
@@ -960,7 +1068,7 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
             if (lText != null) {
                 if (!lText.trim().equals("")) {
                     try {
-                        pTextfield.setForeground(BLACK);
+                        pTextfield.setForeground(UIManager.getColor("TextField.foreground"));
                         return Integer.parseInt(lText);
                     } catch (NumberFormatException pEx) {
                         pTextfield.setForeground(EXCEPTION_COLOR);
@@ -972,17 +1080,20 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         }
 
         public void refreshData() {
+            int lMinReqLvl = -1;
             int lMaxReqLvl = -1;
             int lMaxReqStr = -1;
             int lMaxReqDex = -1;
 
             if (iTypeUnique != null) {
+                lMinReqLvl = getInteger(iReqMinLvl);
                 lMaxReqLvl = getInteger(iReqMaxLvl);
                 lMaxReqStr = getInteger(iReqMaxStr);
                 lMaxReqDex = getInteger(iReqMaxDex);
             }
 
             iItems = new ArrayList();
+            iItemDumps.clear();
             if (iStash != null) {
                 List lList = iStash.getItemList();
                 for (int i = 0; i < lList.size(); i++) {
@@ -1217,6 +1328,11 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
                             }
                         }
 
+                        if (lMinReqLvl != -1) {
+                            if (lItem.getReqLvl() < lMinReqLvl) {
+                                lAdd1 = false;
+                            }
+                        }
                         if (lMaxReqLvl != -1) {
                             if (lItem.getReqLvl() > lMaxReqLvl) {
                                 lAdd1 = false;
@@ -1249,20 +1365,21 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
                     D2Item lItem2 = (D2Item) pObj2;
                     try {
                         for (int i = 0; i < iSortList.size(); i++) {
-                            Object lSort = iSortList.get(i);
-
-                            if (lSort == HEADER[0]) {
-                                return lItem1.getName().compareTo(lItem2.getName());
-                            } else if (lSort == HEADER[1]) {
-                                return lItem1.getReqLvl() - lItem2.getReqLvl();
-                            } else if (lSort == HEADER[2]) {
-                                return lItem1.getReqStr() - lItem2.getReqStr();
-                            } else if (lSort == HEADER[3]) {
-                                return lItem1.getReqDex() - lItem2.getReqDex();
-                            } else if (lSort == HEADER[4]) {
-                                String lFileName1 = ((D2ItemListAll) iStash).getFilename(lItem1);
-                                String lFileName2 = ((D2ItemListAll) iStash).getFilename(lItem2);
-                                return lFileName1.compareTo(lFileName2);
+                            StashColumn lSort = (StashColumn) iSortList.get(i);
+                            int lResult;
+                            if (lSort.getBuiltin() == StashColumn.Builtin.NAME) {
+                                lResult = lItem1.getName().compareTo(lItem2.getName());
+                            } else if (lSort.getBuiltin() == StashColumn.Builtin.REQ_LVL) {
+                                lResult = lItem1.getReqLvl() - lItem2.getReqLvl();
+                            } else if (lSort.getBuiltin() == StashColumn.Builtin.REQ_STR) {
+                                lResult = lItem1.getReqStr() - lItem2.getReqStr();
+                            } else if (lSort.getBuiltin() == StashColumn.Builtin.REQ_DEX) {
+                                lResult = lItem1.getReqDex() - lItem2.getReqDex();
+                            } else {
+                                lResult = lSort.compareValues(getCellText(lItem1, lSort), getCellText(lItem2, lSort));
+                            }
+                            if (lResult != 0) {
+                                return lResult;
                             }
                         }
 
@@ -1288,24 +1405,11 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         }
 
         public int getColumnCount() {
-            return 4;
+            return iColumns.size();
         }
 
         public String getColumnName(int pCol) {
-            switch (pCol) {
-                case 0:
-                    return "Name";
-                case 1:
-                    return "lvl";
-                case 2:
-                    return "str";
-                case 3:
-                    return "dex";
-//            case 4:
-//                return "Type";
-                default:
-                    return "";
-            }
+            return iColumns.get(pCol).getLabel();
         }
 
         public Class getColumnClass(int pCol) {
@@ -1318,29 +1422,12 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
         public Object getValueAt(int pRow, int pCol) {
             D2Item lItem = (D2Item) iItems.get(pRow);
-            switch (pCol) {
-                case 0:
-                    return new D2CellValue(lItem.getItemName(), lItem, iFileManager.getProject());
-                case 1:
-                    return new D2CellValue(getStringValue(lItem.getReqLvl()), lItem, iFileManager.getProject());
-                case 2:
-                    return new D2CellValue(getStringValue(lItem.getReqStr()), lItem, iFileManager.getProject());
-                case 3:
-                    return new D2CellValue(getStringValue(lItem.getReqDex()), lItem, iFileManager.getProject());
-                case 4:
-                    String lFileName = ((D2ItemListAll) iStash).getFilename(lItem);
-                    String lType = (lFileName.toLowerCase().endsWith(".d2s")) ? "C" : "S";
-                    return new D2CellValue(lType, lFileName, lItem, iFileManager.getProject());
-                default:
-                    return "";
+            StashColumn lColumn = iColumns.get(pCol);
+            String lText = getCellText(lItem, lColumn);
+            if (lColumn.getBuiltin() == StashColumn.Builtin.SOURCE && !isStash()) {
+                return new D2CellValue(lText, ((D2ItemListAll) iStash).getFilename(lItem), lItem, iFileManager.getProject());
             }
-        }
-
-        private String getStringValue(int pValue) {
-            if (pValue == -1) {
-                return "";
-            }
-            return Integer.toString(pValue);
+            return new D2CellValue(lText, lItem, iFileManager.getProject());
         }
 
         public void setValueAt(Object pValue, int pRow, int pCol) {
@@ -1608,4 +1695,4 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
     }
 
-}
+}

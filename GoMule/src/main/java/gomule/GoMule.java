@@ -47,7 +47,7 @@ public class GoMule {
         checkAndSwapUpdater();
         try {
             Properties fileManagerPropertiesFile = FileManagerProperties.loadFileManagerProperties();
-            String lLookAndFeel = LookAndFeelOptions.valueOf(fileManagerPropertiesFile.getProperty(LookAndFeelOptions.PROPERTY_NAME, LookAndFeelOptions.CLASSIC.name())).getLookAndFeelName();
+            String lLookAndFeel = LookAndFeelOptions.valueOf(fileManagerPropertiesFile.getProperty(LookAndFeelOptions.PROPERTY_NAME, LookAndFeelOptions.MODERN.name())).getLookAndFeelName();
 
             String[] lArgs = pArgs;
 

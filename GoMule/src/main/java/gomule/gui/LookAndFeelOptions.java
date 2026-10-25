@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 
 public enum LookAndFeelOptions {
 
+    MODERN("Modern GoMule", GoMuleModernLaf.class::getName),
     CLASSIC("Classic GoMule", () -> {
         if (System.getProperty("os.name").toLowerCase().contains("mac")) {
             return "apple.laf.AquaLookAndFeel";

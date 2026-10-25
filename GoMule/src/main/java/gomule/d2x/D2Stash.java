@@ -96,6 +96,7 @@ public class D2Stash extends D2ItemListAdapter {
 
     public void saveInternal(D2Project pProject) {
         // backup file
+        D2Backup.writeBak(iFileName);
         D2Backup.backup(pProject, iFileName, new D2BitReader(iFileName));
         stashWriter.write(this);
         setModified(false);

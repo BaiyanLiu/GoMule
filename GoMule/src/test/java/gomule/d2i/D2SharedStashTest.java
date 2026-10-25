@@ -3,6 +3,7 @@ package gomule.d2i;
 import com.google.common.io.BaseEncoding;
 import gomule.d2i.D2SharedStash.D2SharedStashPane;
 import gomule.item.D2Item;
+import gomule.model.VersionController;
 import gomule.util.D2BitReader;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -50,6 +51,16 @@ public class D2SharedStashTest {
         expectedGrid[9][9] = items.get(1);
         D2SharedStashPane expected = new D2SharedStashPane(items, expectedGrid, 0);
         assertEquals(expected, D2SharedStashPane.fromItems(items, 0));
+    }
+
+    @Test
+    public void testTotalGold() {
+        D2SharedStash stash = new D2SharedStash(VersionController.Variant.ROW, "", Arrays.asList(
+                D2SharedStashPane.fromItems(Collections.emptyList(), 2_500_000),
+                D2SharedStashPane.fromItems(Collections.emptyList(), 51_470),
+                D2SharedStashPane.fromItems(Collections.emptyList(), 0)
+        ), new byte[0]);
+        assertEquals(2_551_470, stash.getTotalGold());
     }
 
     @Test
@@ -115,4 +126,4 @@ public class D2SharedStashTest {
         Mockito.when(mock.get_height()).thenReturn((short) height);
         return mock;
     }
-}
+}

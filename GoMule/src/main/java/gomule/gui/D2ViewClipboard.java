@@ -93,7 +93,7 @@ public class D2ViewClipboard extends RandallPanel implements D2ItemContainer, D2
             iIconLabel.setIcon(iIcon);
             iIconLabel.setHorizontalAlignment(JLabel.CENTER);
             iIconLabel.setOpaque(true);
-            iIconLabel.setBackground(Color.black);
+            iIconLabel.setBackground(D2ViewStash.itemTextBackground());
 
             addToPanel(new JLabel("GoMule Bank: "), 0, 2, 1, RandallPanel.NONE);
             addToPanel(iBank, 1, 2, 1, RandallPanel.HORIZONTAL);

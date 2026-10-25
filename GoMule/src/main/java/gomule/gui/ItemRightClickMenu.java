@@ -29,7 +29,7 @@ public class ItemRightClickMenu extends JPopupMenu {
             JEditorPane report = new JEditorPane();
             report.setContentType("text/html");
             JScrollPane SP = new JScrollPane(report);
-            report.setBackground(Color.black);
+            report.setBackground(D2ViewStash.itemTextBackground());
             report.setForeground(Color.white);
             report.setText(
                     "<html><font size=5 face=Dialog>" + D2ItemRenderer.itemDumpHtml(item, true) + "</font></html>");

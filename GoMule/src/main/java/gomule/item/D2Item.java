@@ -31,6 +31,10 @@ import randall.flavie.D2ItemInterface;
 import java.awt.*;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -1527,6 +1531,31 @@ public class D2Item implements Comparable, D2ItemInterface {
     public boolean isTypeWeapon() {
         return iTypeWeapon;
     }
+
+    /**
+     * True for drinkable potions: healing, mana, rejuvenation, stamina, antidote and thawing. Throwing potions are weapons.
+     */
+    public boolean isPotion() {
+        return iTypeMisc && iType != null && POTION_TYPES.contains(iType);
+    }
+
+    private static final Set<String> POTION_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("hpot", "mpot", "rpot", "spot", "apot", "wpot")));
+
+    /**
+     * True for weapons the game counts as two-handed: bows, crossbows, staves, polearms and two-handed swords and
+     * axes, including the swords barbarians can hold in one hand.
+     */
+    public boolean isTwoHanded() {
+        if (!iTypeWeapon) return false;
+        if (iTwoHanded == null) {
+            // looked up once: a search through weapons.txt, and sorting asks for every item against every stash
+            D2TxtFileItemProperties lWeapon = D2TxtFile.WEAPONS.searchColumns("code", item_type);
+            iTwoHanded = lWeapon != null && "1".equals(lWeapon.get("2handed"));
+        }
+        return iTwoHanded;
+    }
+
+    private Boolean iTwoHanded;
 
     public boolean isCursorItem() {
         if (location != 0 && location != 2) {

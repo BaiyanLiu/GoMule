@@ -47,14 +47,19 @@ public class D2CellStringRenderer extends DefaultTableCellRenderer {
 
         Component lRenderer = super.getTableCellRendererComponent(pTable, lValue, pIsSelected, pHasFocus, pRow, pColumn);
 
-        lRenderer.setBackground(Color.DARK_GRAY);
+        // the Modern appearance sets these; other appearances keep the original gray rows with black selection
+        Color lBackground = UIManager.getColor("GoMule.itemTable.background");
+        Color lAlternate = UIManager.getColor("GoMule.itemTable.alternateBackground");
+        Color lSelection = UIManager.getColor("GoMule.itemTable.selectionBackground");
+        lRenderer.setBackground(lBackground == null ? Color.DARK_GRAY : (pRow % 2 == 1 && lAlternate != null ? lAlternate : lBackground));
         if (pIsSelected) {
-            lRenderer.setBackground(Color.black);
+            lRenderer.setBackground(lSelection == null ? Color.black : lSelection);
         }
         //  lRenderer.setBackground(Color.black);
 
         if (lForeground != null) {
-            lRenderer.setForeground(lForeground);
+            // on the Modern selected row, lighten dim item colors (gray, blue, green) until they read clearly
+            lRenderer.setForeground(pIsSelected && lSelection != null ? readableOn(lForeground, lSelection) : lForeground);
         } else {
             lRenderer.setForeground(Color.black);
         }
@@ -65,6 +70,33 @@ public class D2CellStringRenderer extends DefaultTableCellRenderer {
 
 
         return lRenderer;
+    }
+
+    static Color readableOn(Color pForeground, Color pBackground) {
+        Color lColor = pForeground;
+        for (int i = 1; i <= 10 && contrast(lColor, pBackground) < 4.5; i++) {
+            float lMix = i / 10f;
+            lColor = new Color(
+                    Math.round(pForeground.getRed() + (255 - pForeground.getRed()) * lMix),
+                    Math.round(pForeground.getGreen() + (255 - pForeground.getGreen()) * lMix),
+                    Math.round(pForeground.getBlue() + (255 - pForeground.getBlue()) * lMix));
+        }
+        return lColor;
+    }
+
+    static double contrast(Color pA, Color pB) {
+        double lA = luminance(pA);
+        double lB = luminance(pB);
+        return (Math.max(lA, lB) + 0.05) / (Math.min(lA, lB) + 0.05);
+    }
+
+    private static double luminance(Color pColor) {
+        return 0.2126 * channel(pColor.getRed()) + 0.7152 * channel(pColor.getGreen()) + 0.0722 * channel(pColor.getBlue());
+    }
+
+    private static double channel(int pValue) {
+        double lValue = pValue / 255.0;
+        return lValue <= 0.03928 ? lValue / 12.92 : Math.pow((lValue + 0.055) / 1.055, 2.4);
     }
 
 }

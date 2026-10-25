@@ -32,10 +32,8 @@ public class D2ItemListAll implements D2ItemList {
         iFileManager = pFileManager;
         iProject = pProject;
 
-        ArrayList lFileNames = new ArrayList();
-
-        lFileNames.addAll(iProject.getCharList());
-        lFileNames.addAll(iProject.getStashList());
+        // Characters and ATMA stashes, minus the stashes the user left out of the All view.
+        ArrayList lFileNames = new ArrayList(iProject.getAllViewFiles());
 
         for (int i = 0; i < lFileNames.size(); i++) {
             try {
@@ -50,8 +48,14 @@ public class D2ItemListAll implements D2ItemList {
     }
 
     public void connect(String pFileName) {
+        if (!iProject.getAllViewFiles().contains(pFileName)) {
+            return;
+        }
         try {
             D2ItemList lList = iFileManager.addItemList(pFileName, null);
+            if (iList.contains(lList)) {
+                return;
+            }
             // set listeners
             for (int i = 0; i < iD2ItemListListenerList.size(); i++) {
                 D2ItemListListener lListener = (D2ItemListListener) iD2ItemListListenerList.get(i);
@@ -68,7 +72,7 @@ public class D2ItemListAll implements D2ItemList {
         try {
             D2ItemList lList = iFileManager.getItemList(pFileName);
 
-            if (lList != null) {
+            if (lList != null && iList.contains(lList)) {
                 // remove listeners
                 for (int i = 0; i < iD2ItemListListenerList.size(); i++) {
                     D2ItemListListener lListener = (D2ItemListListener) iD2ItemListListenerList.get(i);

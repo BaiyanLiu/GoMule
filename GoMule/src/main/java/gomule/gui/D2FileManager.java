@@ -1397,9 +1397,11 @@ public class D2FileManager extends JFrame {
         checkAll(false);
 
         iClipboard.saveView();
-        Iterator lIterator = iItemLists.keySet().iterator();
-        while (lIterator.hasNext()) {
-            String lFileName = (String) lIterator.next();
+        // ATMA stashes first: an item dragged or sorted out of the shared stash is then on disk twice
+        // rather than nowhere if a later save fails
+        List<String> lFileNames = new ArrayList<>(iItemLists.keySet());
+        lFileNames.sort(Comparator.comparing(lFileName -> !lFileName.toLowerCase().endsWith(".d2x")));
+        for (String lFileName : lFileNames) {
             D2ItemList lList = getItemList(lFileName);
             if (lList.isModified()) {
                 lList.save(iProject);
@@ -1635,6 +1637,27 @@ public class D2FileManager extends JFrame {
 
         if (pContainer.getFileName().equalsIgnoreCase("all")) {
             iViewAll = (D2ViewStash) pContainer;
+        }
+    }
+
+    /**
+     * Adds an ATMA stash to an open All view, or takes it out, after the user changed whether it is shown there.
+     * When a stash taken out has changes, everything is saved first (in the usual safe order), since the stash
+     * is unloaded when nothing else has it open.
+     */
+    public void allViewChanged(String pFileName) {
+        if (iViewAll == null || !(iViewAll.getItemLists() instanceof D2ItemListAll)) {
+            return;
+        }
+        D2ItemListAll lAll = (D2ItemListAll) iViewAll.getItemLists();
+        if (iProject.isInAllView(pFileName)) {
+            lAll.connect(pFileName);
+        } else {
+            D2ItemList lList = getItemList(pFileName);
+            if (lList != null && lList.isModified()) {
+                saveAllItemLists();
+            }
+            lAll.disconnect(pFileName);
         }
     }
 
@@ -1883,6 +1906,20 @@ public class D2FileManager extends JFrame {
 
     public D2ItemList getItemList(String pFileName) {
         return (D2ItemList) iItemLists.get(pFileName);
+    }
+
+    /**
+     * Loads the item list (if not loaded yet) so an item can be dropped into it.
+     * It stays loaded, so it is saved together with the other changes on the next save.
+     * Returns null after showing the error when the file cannot be used.
+     */
+    public D2ItemList getItemListForDrop(String pFileName) {
+        try {
+            return addItemList(pFileName, null);
+        } catch (Exception pEx) {
+            displayErrorDialog(pEx);
+            return null;
+        }
     }
 
     public void removeItemList(String pFileName, D2ItemListListener pListener) {
