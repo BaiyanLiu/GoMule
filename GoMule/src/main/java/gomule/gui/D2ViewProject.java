@@ -355,7 +355,8 @@ public class D2ViewProject extends JPanel {
         if (iTreeModel != null) {
             Enumeration<TreePath> lOpen = iTree.getExpandedDescendants(new TreePath(iTreeModel.getRoot()));
             while (lOpen != null && lOpen.hasMoreElements()) {
-                lExpand.add(nodeKey(lOpen.nextElement().getLastPathComponent()));
+                String lKey = nodeKey(lOpen.nextElement().getLastPathComponent());
+                if (lKey != null) lExpand.add(lKey);
             }
         }
         iTreeModel = refreshTree();
@@ -365,7 +366,8 @@ public class D2ViewProject extends JPanel {
         if (pExpandSharedStash) lExpand.add(nodeKey(iSharedStashes));
         // Rows below a row only appear once it is open, so going down the rows opens parents before children.
         for (int i = 0; i < iTree.getRowCount(); i++) {
-            if (lExpand.contains(nodeKey(iTree.getPathForRow(i).getLastPathComponent()))) {
+            String lKey = nodeKey(iTree.getPathForRow(i).getLastPathComponent());
+            if (lKey != null && lExpand.contains(lKey)) {
                 iTree.expandRow(i);
             }
         }
@@ -377,9 +379,13 @@ public class D2ViewProject extends JPanel {
     private static String nodeKey(Object pNode) {
         if (pNode instanceof FolderTreeNode) {
             FolderTreeNode lNode = (FolderTreeNode) pNode;
-            return lNode.getFolders().getPrefix() + ":" + lNode.getFolderPath();
+            return folderKey(lNode.getFolders(), lNode.getFolderPath());
         }
         return null;
+    }
+
+    private static String folderKey(ProjectFolders pFolders, String pPath) {
+        return pFolders.getPrefix() + ":" + pPath;
     }
 
     private DefaultTreeModel refreshTree() {
@@ -519,7 +525,7 @@ public class D2ViewProject extends JPanel {
             return;
         }
         if (lWasOpen) {
-            iExpandNext.add(pNode.getFolders().getPrefix() + ":" + lPath);
+            iExpandNext.add(folderKey(pNode.getFolders(), lPath));
         }
         folderChanged();
     }
@@ -717,6 +723,7 @@ public class D2ViewProject extends JPanel {
          */
         private static final long serialVersionUID = -7061935461861570778L;
         private String iFileName;
+        private final boolean iAtmaStash;
         private Color iForeGround = UIManager.getColor("Tree.textForeground");
         private boolean iItemListRead = false;
         private boolean iFileOpened = false;
@@ -724,8 +731,9 @@ public class D2ViewProject extends JPanel {
         public CharTreeNode(String pFileName) {
             super(getCharStr(pFileName), false);
             iFileName = pFileName;
+            iAtmaStash = iFileName.toLowerCase().endsWith(".d2x");
 
-            if (!iFileName.toLowerCase().equals("all")) {
+            if (!iFileName.equalsIgnoreCase("all")) {
                 File lTest = new File(iFileName);
                 if (!lTest.exists() || !lTest.isFile() || !lTest.canRead() || !lTest.canWrite()) {
                     iForeGround = new Color(187, 67, 67);
@@ -764,7 +772,7 @@ public class D2ViewProject extends JPanel {
          * True for an ATMA stash the user has left out of the All view.
          */
         boolean isLeftOutOfAll() {
-            return iProject != null && iFileName.toLowerCase().endsWith(".d2x") && !iProject.isInAllView(iFileName);
+            return iAtmaStash && iProject != null && !iProject.isInAllView(iFileName);
         }
 
         public void view() {
@@ -833,7 +841,7 @@ public class D2ViewProject extends JPanel {
                 }
             }
 
-            if (iFileName.toLowerCase().endsWith(".d2x")) {
+            if (iAtmaStash) {
                 JMenuItem lSortRules = new JMenuItem("Sorting rules...");
                 lMenu.add(lSortRules);
                 lSortRules.addActionListener(e -> StashSortRulesDialog.showFor(iTree, iProject, iFileName));
@@ -844,7 +852,7 @@ public class D2ViewProject extends JPanel {
                 lInAll.addActionListener(e -> setInAllView(Collections.singletonList(iFileName), lInAll.isSelected()));
             }
 
-            if (iFileName.toLowerCase().endsWith(".d2x") || iFileName.toLowerCase().endsWith(".d2i")) {
+            if (iAtmaStash || iFileName.toLowerCase().endsWith(".d2i")) {
                 JMenuItem lRestore = new JMenuItem("Restore from backup...");
                 lMenu.add(lRestore);
                 lRestore.addActionListener(e -> RestoreBackupDialog.showFor(iTree, iFileManager, iFileName));

@@ -1,7 +1,6 @@
 package gomule.util;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,22 +151,22 @@ public class ProjectFolders {
      */
     public void deleteFolder(String pFolder) {
         if (!iFolders.contains(pFolder)) return;
-        String pPath = canonical(pFolder);
-        String lParent = getParent(pPath);
+        String lPath = canonical(pFolder);
+        String lParent = getParent(lPath);
         List<String> lInside = new ArrayList<>();
         for (String lFolder : iFolders) {
-            if (isInside(lFolder, pPath)) lInside.add(lFolder);
+            if (isInside(lFolder, lPath)) lInside.add(lFolder);
         }
         iFolders.removeAll(lInside);
         for (String lFolder : lInside) {
-            if (!lFolder.equals(pPath)) iFolders.add(join(lParent, lFolder.substring(pPath.length() + 1)));
+            if (!lFolder.equals(lPath)) iFolders.add(join(lParent, lFolder.substring(lPath.length() + 1)));
         }
         for (Map.Entry<String, String> lEntry : iFileFolders.entrySet()) {
             String lFolder = lEntry.getValue();
-            if (lFolder.equals(pPath)) {
+            if (lFolder.equals(lPath)) {
                 lEntry.setValue(lParent);
-            } else if (isInside(lFolder, pPath)) {
-                lEntry.setValue(join(lParent, lFolder.substring(pPath.length() + 1)));
+            } else if (isInside(lFolder, lPath)) {
+                lEntry.setValue(join(lParent, lFolder.substring(lPath.length() + 1)));
             }
         }
         // Map moved files onto the merged folder's stored spelling, when one differed only in case.
@@ -255,16 +254,5 @@ public class ProjectFolders {
             String lFolder = getFolderOf((String) pFiles.get(j));
             if (!lFolder.isEmpty()) pProperties.put(iPrefix + "." + j + ".folder", lFolder);
         }
-    }
-
-    /**
-     * Files of pFiles that are directly in pFolder, in pFiles order.
-     */
-    public List<String> getFilesIn(String pFolder, List<?> pFiles) {
-        List<String> lFiles = new ArrayList<>();
-        for (Object lFile : pFiles) {
-            if (getFolderOf((String) lFile).equals(pFolder)) lFiles.add((String) lFile);
-        }
-        return Collections.unmodifiableList(lFiles);
     }
 }

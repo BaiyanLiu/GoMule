@@ -184,6 +184,8 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
                     if (lNew >= 0) {
                         iTable.setRowSelectionInterval(lNew, lNew);
                     }
+                } else if (e.getKeyCode() == KeyEvent.VK_DELETE) {
+                    deleteSelected();
                 }
             }
         });
@@ -316,9 +318,11 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
                 }
 
                 public void mousePressed(MouseEvent arg0) {
+                    if (arg0.isPopupTrigger()) showItemMenu(arg0);
                 }
 
                 public void mouseReleased(MouseEvent arg0) {
+                    if (arg0.isPopupTrigger()) showItemMenu(arg0);
                 }
             });
 
@@ -497,7 +501,7 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         iPickup = new JButton("Pickup");
         iDelete = new JButton("Delete");
         iDeleteDups = new JButton("Delete Dupes");
-        iDelete.setEnabled(D2FileManager.getInstance().getProject().getAllowDelete());
+        iDelete.setToolTipText("Delete the selected items (Delete key, or right-click an item)");
         iDeleteDups.setEnabled(D2FileManager.getInstance().getProject().getAllowDelete());
         iPickup.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent pEvent) {
@@ -538,29 +542,7 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
         iDelete.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent pEvent) {
-                Vector lItemList = new Vector();
-
-                int lRows[] = iTable.getSelectedRows();
-
-                if (lRows.length > 0) {
-                    for (int i = 0; i < lRows.length; i++) {
-                        lItemList.add(iItemModel.getItem(lRows[i]));
-                    }
-                    try {
-                        iStash.ignoreItemListEvents();
-                        for (int i = 0; i < lItemList.size(); i++) {
-                            int check = JOptionPane.showConfirmDialog(null, "Delete " + ((D2Item) lItemList.get(i)).getName() + "?");
-
-                            if (check == 0) {
-                                iStash.removeItem((D2Item) lItemList.get(i));
-                            }
-                        }
-
-                    } finally {
-                        iStash.listenItemListEvents();
-                    }
-                    itemListChanged();
-                }
+                deleteSelected();
             }
         });
         lButtonPanel.addToPanel(iDelete, 3, 0, 1, RandallPanel.HORIZONTAL);
@@ -610,31 +592,74 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
         return lButtonPanel;
     }
 
+    private List<D2Item> getSelectedItems() {
+        List<D2Item> lItems = new ArrayList<>();
+        for (int lRow : iTable.getSelectedRows()) {
+            lItems.add(iItemModel.getItem(lRow));
+        }
+        return lItems;
+    }
+
+    /**
+     * Deletes the selected items after one confirmation. Saving the stash afterwards backs it up first, so a
+     * deletion can be undone with "Restore from backup..." in the project tree.
+     */
+    protected void deleteSelected() {
+        if (iStash == null) return;
+        List<D2Item> lItems = getSelectedItems();
+        if (lItems.isEmpty()) return;
+        if (!iFileManager.getProject().getAllowDelete()) {
+            JOptionPane.showMessageDialog(this,
+                    "Item deletion is turned off for this project.\nTurn on \"Allow Item Deletion\" in the project settings to delete items.",
+                    "Delete", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        int lAnswer = JOptionPane.showConfirmDialog(this, StashItemDeleter.confirmationMessage(lItems),
+                "Delete", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (lAnswer != JOptionPane.YES_OPTION) return;
+
+        int lFirstRow = iTable.getSelectedRow();
+        StashItemDeleter.delete(iStash, lItems);
+        itemListChanged();
+        // keep the selection near where it was, so several items can be deleted one after another
+        int lRow = Math.min(lFirstRow, iTable.getRowCount() - 1);
+        if (lRow >= 0) iTable.changeSelection(lRow, 0, false, false);
+    }
+
+    private void showItemMenu(MouseEvent pEvent) {
+        int lRow = iTable.rowAtPoint(pEvent.getPoint());
+        if (lRow < 0) return;
+        if (!iTable.isRowSelected(lRow)) iTable.setRowSelectionInterval(lRow, lRow);
+        int lCount = iTable.getSelectedRowCount();
+
+        JPopupMenu lMenu = new JPopupMenu();
+        JMenuItem lPickup = new JMenuItem(lCount == 1 ? "Pick up" : "Pick up " + lCount + " items");
+        lPickup.addActionListener(e -> pickupSelected());
+        lMenu.add(lPickup);
+        JMenuItem lDelete = new JMenuItem(lCount == 1 ? "Delete..." : "Delete " + lCount + " items...");
+        lDelete.addActionListener(e -> deleteSelected());
+        lMenu.add(lDelete);
+        lMenu.show(iTable, pEvent.getX(), pEvent.getY());
+    }
+
     private void selectItem(D2Item pItem) {
         int rowOfInsertedItem = iItemModel.iItems.indexOf(pItem);
         if (rowOfInsertedItem >= 0) iTable.changeSelection(rowOfInsertedItem, 0, false, false);
     }
 
     protected void pickupSelected() {
-        Vector lItemList = new Vector();
-
-        int lRows[] = iTable.getSelectedRows();
-
-        if (lRows.length > 0) {
-            for (int i = 0; i < lRows.length; i++) {
-                lItemList.add(iItemModel.getItem(lRows[i]));
+        List<D2Item> lItems = getSelectedItems();
+        if (lItems.isEmpty()) return;
+        try {
+            iStash.ignoreItemListEvents();
+            for (D2Item lItem : lItems) {
+                iStash.removeItem(lItem);
+                D2ViewClipboard.addItem(lItem);
             }
-            try {
-                iStash.ignoreItemListEvents();
-                for (int i = 0; i < lItemList.size(); i++) {
-                    iStash.removeItem((D2Item) lItemList.get(i));
-                    D2ViewClipboard.addItem((D2Item) lItemList.get(i));
-                }
-            } finally {
-                iStash.listenItemListEvents();
-            }
-            itemListChanged();
+        } finally {
+            iStash.listenItemListEvents();
         }
+        itemListChanged();
     }
 
     private RandallPanel getTypePanel() {

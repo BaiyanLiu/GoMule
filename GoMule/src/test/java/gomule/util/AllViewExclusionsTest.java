@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -96,5 +97,46 @@ public class AllViewExclusionsTest {
         lRead.load(lProps);
         assertTrue(lRead.isExcluded(RUNES));
         assertFalse(lRead.isExcluded(SETS));
+    }
+
+    @Test
+    public void sharesTheProjectFileWithFoldersAndKeepsTrackWhenAStashBeforeItIsRemoved() throws Exception {
+        // Both write next to the same stash.N entries, as D2Project saves them.
+        List<String> lStashes = new ArrayList<>(Arrays.asList(JUNK, RUNES, SETS));
+        AllViewExclusions lExclusions = new AllViewExclusions("stash");
+        ProjectFolders lFolders = new ProjectFolders("stash");
+        lFolders.addFolder("", "Mules");
+        lFolders.moveFile(SETS, "Mules");
+        lExclusions.setExcluded(SETS, true);
+
+        // JUNK leaves the project, so SETS is written as stash.1 instead of stash.2
+        lStashes.remove(JUNK);
+        lExclusions.removeFile(JUNK);
+        lFolders.removeFile(JUNK);
+
+        Properties lSaved = new Properties();
+        for (int i = 0; i < lStashes.size(); i++) lSaved.put("stash." + i, lStashes.get(i));
+        lFolders.save(lSaved, lStashes);
+        lExclusions.save(lSaved, lStashes);
+        assertEquals("Mules", lSaved.getProperty("stash.1.folder"));
+        assertEquals("true", lSaved.getProperty("stash.1.notInAll"));
+        assertNull(lSaved.getProperty("stash.2.notInAll"));
+
+        ByteArrayOutputStream lOut = new ByteArrayOutputStream();
+        lSaved.store(lOut, null);
+        Properties lLoaded = new Properties();
+        lLoaded.load(new ByteArrayInputStream(lOut.toByteArray()));
+
+        AllViewExclusions lReadExclusions = new AllViewExclusions("stash");
+        lReadExclusions.load(lLoaded);
+        ProjectFolders lReadFolders = new ProjectFolders("stash");
+        lReadFolders.load(lLoaded);
+        assertEquals(Collections.singletonList(RUNES), lReadExclusions.keep(lStashes));
+        assertEquals("Mules", lReadFolders.getFolderOf(SETS));
+        assertEquals("", lReadFolders.getFolderOf(RUNES));
+        // the char part of the project keeps its own flags apart
+        AllViewExclusions lChars = new AllViewExclusions("char");
+        lChars.load(lLoaded);
+        assertFalse(lChars.isExcluded(SETS));
     }
 }

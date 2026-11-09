@@ -111,7 +111,6 @@ public class ProjectFoldersTest {
         assertEquals(Arrays.asList("Mules", "Mules/Empty one"), lRead.getFolders());
         assertEquals("", lRead.getFolderOf(JAVAZON));
         assertEquals("Mules", lRead.getFolderOf(SORC));
-        assertEquals(Collections.singletonList(SORC), lRead.getFilesIn("Mules", lChars));
         // The other parts of the tree don't pick these up.
         ProjectFolders lStashes = new ProjectFolders("stash");
         lStashes.load(lLoaded);
