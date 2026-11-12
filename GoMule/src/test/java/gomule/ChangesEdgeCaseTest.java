@@ -80,31 +80,34 @@ public class ChangesEdgeCaseTest {
     }
 
     @Test
-    public void goldTransferClampEdgeCases() throws Exception {
-        java.lang.reflect.Method clamp = Class.forName("gomule.gui.sharedStash.SharedStashGoldTransferPanel")
-                .getDeclaredMethod("clampTransferAmount", int.class, int.class, int.class, int.class);
-        clamp.setAccessible(true);
-        Function<int[], Integer> c = a -> {
-            try {
-                return (Integer) clamp.invoke(null, a[0], a[1], a[2], a[3]);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        };
-        // into a page: amount, bank, page gold, cap
-        assertEquals(55_710, c.apply(new int[]{1_000_000, 5_000_000, 2_444_290, MAX_GOLD_PER_PANE}));
-        assertEquals(0, c.apply(new int[]{10_000, 5_000_000, MAX_GOLD_PER_PANE, MAX_GOLD_PER_PANE}));
-        assertEquals(0, c.apply(new int[]{10_000, 5_000_000, MAX_GOLD_PER_PANE + 1, MAX_GOLD_PER_PANE}));
-        assertEquals(0, c.apply(new int[]{10_000, 0, 0, MAX_GOLD_PER_PANE}));
-        assertEquals(0, c.apply(new int[]{0, 10_000, 0, MAX_GOLD_PER_PANE}));
-        assertEquals(0, c.apply(new int[]{-5, 10_000, 0, MAX_GOLD_PER_PANE}));
-        assertEquals(0, c.apply(new int[]{Integer.MIN_VALUE, 10_000, 0, MAX_GOLD_PER_PANE}));
-        assertEquals(MAX_GOLD_PER_PANE, c.apply(new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE, 0, MAX_GOLD_PER_PANE}));
-        // out of a page into the bank, which has no cap
-        assertEquals(2_444_290, c.apply(new int[]{Integer.MAX_VALUE, 2_444_290, 0, Integer.MAX_VALUE}));
-        assertEquals(1, c.apply(new int[]{10, 2_444_290, Integer.MAX_VALUE - 1, Integer.MAX_VALUE}));
-        assertEquals(0, c.apply(new int[]{10, 2_444_290, Integer.MAX_VALUE, Integer.MAX_VALUE}));
-        assertEquals(0, c.apply(new int[]{10, -100, 0, Integer.MAX_VALUE}));
+    public void goldTransferAcrossPagesEdgeCases() throws Exception {
+        Class<?> panel = Class.forName("gomule.gui.sharedStash.SharedStashGoldTransferPanel");
+        java.lang.reflect.Method withdraw = panel.getDeclaredMethod("withdraw", int[].class, int.class, int.class);
+        java.lang.reflect.Method deposit = panel.getDeclaredMethod("deposit", int[].class, int.class, int.class, int.class, int.class);
+        java.lang.reflect.Method roomInBank = panel.getDeclaredMethod("roomInBank", int.class);
+        withdraw.setAccessible(true);
+        deposit.setAccessible(true);
+        roomInBank.setAccessible(true);
+        int cap = MAX_GOLD_PER_PANE;
+
+        // into the stash: pages, selected page, item page count, amount
+        assertArrayEquals(new int[]{cap, cap}, (int[]) deposit.invoke(null, new int[]{0, 2_444_290}, 1, 2, cap + 55_710, cap));
+        assertArrayEquals(new int[]{0, cap}, (int[]) deposit.invoke(null, new int[]{0, 2_444_290}, 1, 2, 55_710, cap));
+        assertArrayEquals(new int[]{cap, cap}, (int[]) deposit.invoke(null, new int[]{cap, cap}, 0, 2, 10_000, cap));
+        assertArrayEquals(new int[]{cap + 1, 10_000}, (int[]) deposit.invoke(null, new int[]{cap + 1, 0}, 0, 2, 10_000, cap));
+        assertArrayEquals(new int[]{0, 0}, (int[]) deposit.invoke(null, new int[]{0, 0}, 0, 2, -5, cap));
+        assertArrayEquals(new int[]{0, 0}, (int[]) deposit.invoke(null, new int[]{0, 0}, 0, 2, Integer.MIN_VALUE, cap));
+        assertArrayEquals(new int[]{cap, cap, 0}, (int[]) deposit.invoke(null, new int[]{0, 0, 0}, 0, 2, Integer.MAX_VALUE, cap));
+        assertArrayEquals(new int[]{5, 0}, (int[]) deposit.invoke(null, new int[]{0, 0}, 7, 2, 5, cap));
+
+        // out of the stash into the bank: more than one page holds, selected page first
+        assertArrayEquals(new int[]{0, 0, 0}, (int[]) withdraw.invoke(null, new int[]{cap, cap, cap}, 1, Integer.MAX_VALUE));
+        assertArrayEquals(new int[]{0, cap - 10, 0}, (int[]) withdraw.invoke(null, new int[]{cap, cap, cap}, 2, 2 * cap + 10));
+        assertArrayEquals(new int[]{-100, 0}, (int[]) withdraw.invoke(null, new int[]{-100, 50}, 0, 10_000));
+        assertArrayEquals(new int[]{10, 20}, (int[]) withdraw.invoke(null, new int[]{10, 20}, 0, -1));
+        assertEquals(1, roomInBank.invoke(null, Integer.MAX_VALUE - 1));
+        assertEquals(0, roomInBank.invoke(null, Integer.MAX_VALUE));
+        assertEquals(Integer.MAX_VALUE, roomInBank.invoke(null, -100));
     }
 
     // ---- pages: empty, full, items not fitting -----------------------------------------------------------
