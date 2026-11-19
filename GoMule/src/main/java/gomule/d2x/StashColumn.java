@@ -2,6 +2,7 @@ package gomule.d2x;
 
 import gomule.item.D2Item;
 import gomule.item.D2ItemRenderer;
+import gomule.item.ItemRollPercent;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +36,10 @@ public class StashColumn {
         DEFENSE("Def", 34, true, item -> item.isTypeArmor() ? Integer.toString(item.getiDef()) : ""),
         ETHEREAL("Eth", 28, false, item -> item.isEthereal() ? "eth" : ""),
         SET("Set", 110, false, item -> item.isSet() && item.getSetName() != null ? item.getSetName() : ""),
+        /** Average roll of the item's varying properties against their ranges, see {@link ItemRollPercent}. */
+        ROLL("Roll %", 46, true, ItemRollPercent::display),
+        /** Points the item's varying properties are below their maximums, summed, see {@link ItemRollPercent}. */
+        ROLL_POINTS("Roll", 40, true, ItemRollPercent::pointsFromMaxDisplay),
         /** Which stash or character the item is in; only offered in the All Stashes view, which fills it in. */
         SOURCE("From", 70, false, item -> "");
 
@@ -52,7 +57,10 @@ public class StashColumn {
 
         @Override
         public String toString() {
-            return this == SOURCE ? "From (stash or character)" : header;
+            if (this == SOURCE) return "From (stash or character)";
+            if (this == ROLL) return "Roll % (average of varying stats)";
+            if (this == ROLL_POINTS) return "Roll (points short of perfect rolls, e.g. -9)";
+            return header;
         }
     }
 
@@ -190,12 +198,16 @@ public class StashColumn {
         if (value1.isEmpty() || value2.isEmpty()) return Boolean.compare(value1.isEmpty(), value2.isEmpty());
         if (isNumeric()) {
             try {
-                return Long.compare(Long.parseLong(value1), Long.parseLong(value2));
+                return Long.compare(Long.parseLong(stripPercent(value1)), Long.parseLong(stripPercent(value2)));
             } catch (NumberFormatException pEx) {
                 // "yes" from a property line without a number; fall through to text order
             }
         }
         return value1.compareToIgnoreCase(value2);
+    }
+
+    private static String stripPercent(String value) {
+        return value.endsWith("%") ? value.substring(0, value.length() - 1) : value;
     }
 
     private static String number(int value) {

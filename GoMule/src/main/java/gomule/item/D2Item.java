@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,6 +57,12 @@ public class D2Item implements Comparable, D2ItemInterface {
     protected String iItemName;
     protected String iBaseItemName;
     private D2PropCollection iProps = new D2PropCollection();
+    /** The UniqueItems, SetItems or Runes row the item was rolled from, for {@link ItemRollPercent}. */
+    private D2TxtFileItemProperties iRollTemplate;
+    /** Copies of the properties rolled from {@link #iRollTemplate}, as read from the file. */
+    private List<D2Prop> iRolledProps = Collections.emptyList();
+    /** {@link ItemRollPercent}'s results for this item, worked out the first time they are asked for. */
+    private ItemRollPercent.Rolls iRolls;
     private ArrayList<D2Item> iSocketedItems;
     private int flags;
     private short version;
@@ -448,6 +455,7 @@ public class D2Item implements Comparable, D2ItemInterface {
 
             D2TxtFileItemProperties lRuneWord = D2TxtFile.RUNES
                     .searchRuneWord(lList);
+            iRollTemplate = lRuneWord;
             if (lRuneWord != null) {
                 String lookedUpName = D2Files.getInstance().getTranslations().getTranslation(lRuneWord.get("Name"));
                 iItemName = lookedUpName == null ? lRuneWord.get("*Rune Name") : lookedUpName;
@@ -597,6 +605,7 @@ public class D2Item implements Comparable, D2ItemInterface {
                 }
 
                 D2TxtFileItemProperties lSet = D2TxtFile.SETITEMS.searchColumns("*ID", String.valueOf(set_id));
+                iRollTemplate = lSet;
                 String nameFromSetFile = lSet.get("index");
                 String translatedName = D2Files.getInstance().getTranslations().getTranslation(nameFromSetFile);
                 iItemName = translatedName == null ? nameFromSetFile : translatedName;
@@ -625,6 +634,7 @@ public class D2Item implements Comparable, D2ItemInterface {
                 D2TxtFileItemProperties lUnique = D2TxtFile.UNIQUES
                         .searchColumns("*ID", String.valueOf(unique_id));
                 if (lUnique == null) break;
+                iRollTemplate = lUnique;
                 String lNewName = D2Files.getInstance().getTranslations().getTranslation(lUnique.get("index"));
                 if (lNewName != null) {
                     iItemName = lNewName;
@@ -834,10 +844,14 @@ public class D2Item implements Comparable, D2ItemInterface {
             }
         }
 
+        int lPropStart = iProps.size();
         if (iJewel) {
             readProperties(pFile, 1);
         } else {
             readProperties(pFile, 0);
+        }
+        if (quality == 5 || quality == 7) {
+            iRolledProps = copyProps(lPropStart);
         }
         if (quality == 5) {
             for (int x = 0; x < 5; x++) {
@@ -847,7 +861,9 @@ public class D2Item implements Comparable, D2ItemInterface {
             }
         }
         if (iRuneWord) {
+            int lRuneWordPropStart = iProps.size();
             readProperties(pFile, 0);
+            iRolledProps = copyProps(lRuneWordPropStart);
         }
 
         if (check_flag(29) && (quality == 5 || quality == 7)) {
@@ -969,6 +985,14 @@ public class D2Item implements Comparable, D2ItemInterface {
                                 gemHeaders[x][y] + "Param"), (x + 7)));
             }
         }
+    }
+
+    private List<D2Prop> copyProps(int pFrom) {
+        List<D2Prop> lCopies = new ArrayList<>();
+        for (int i = pFrom; i < iProps.size(); i++) {
+            lCopies.add(new D2Prop((D2Prop) iProps.get(i)));
+        }
+        return Collections.unmodifiableList(lCopies);
     }
 
     private void readProperties(D2BitReader pFile, int qFlag) {
@@ -1737,6 +1761,39 @@ public class D2Item implements Comparable, D2ItemInterface {
 
     public D2PropCollection getPropCollection() {
         return iProps;
+    }
+
+    /**
+     * The UniqueItems, SetItems or Runes row this item was rolled from; null for other items.
+     */
+    public D2TxtFileItemProperties getRollTemplate() {
+        return iRollTemplate;
+    }
+
+    /**
+     * The item's own properties rolled from {@link #getRollTemplate()}, as stored in the file: without socketed
+     * items, set bonuses or (for a runeword) the base item's own properties.
+     */
+    public List<D2Prop> getRolledProps() {
+        return iRolledProps;
+    }
+
+    /**
+     * {@link ItemRollPercent}'s results, worked out once: everything they depend on is fixed when the item is read.
+     */
+    ItemRollPercent.Rolls getRolls() {
+        if (iRolls == null) iRolls = ItemRollPercent.compute(this);
+        return iRolls;
+    }
+
+    /** The item code, as in Armor.txt, Weapons.txt or Misc.txt. */
+    public String getItemCode() {
+        return item_type;
+    }
+
+    /** An armor's defense as stored in the file, before its properties add to it. */
+    public int getBaseDefense() {
+        return iInitDef;
     }
 
     public String getItemQuality() {
