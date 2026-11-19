@@ -27,7 +27,6 @@ import gomule.item.D2BodyLocations;
 import gomule.item.D2Item;
 import gomule.item.D2ItemRenderer;
 import gomule.item.D2WeaponTypes;
-import gomule.item.ItemRollPercent;
 import gomule.model.VersionController;
 import gomule.util.D2CellStringRenderer;
 import gomule.util.D2CellValue;
@@ -1407,9 +1406,10 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
                             if (lResult != 0) {
                                 return lResult;
                             }
-                            // ties on the clicked column go to the worst roll first, even if that column is hidden
-                            if (i == 0 && lSort.getBuiltin() != StashColumn.Builtin.ROLL_POINTS) {
-                                lResult = ItemRollPercent.compareWorstRollFirst(lItem1, lItem2);
+                            // ties on the clicked column go by name, then the worst roll first, then the lowest
+                            // defense, even if those columns are hidden
+                            if (i == 0) {
+                                lResult = StashColumn.compareTieBreakers(lSort.getBuiltin(), lItem1, lItem2);
                                 if (lResult != 0) {
                                     return lResult;
                                 }

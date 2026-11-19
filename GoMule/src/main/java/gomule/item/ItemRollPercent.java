@@ -20,7 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * from the minimum (0) to the maximum (1), averaged with equal weight.
  * <p>
  * {@link #pointsFromMax} instead adds up how many points each of those properties is below its maximum, for example
- * an Annihilus with 16 of 10-20 all stats and 5 of 5-10% experience is -9. It leaves out the base defense.
+ * an Annihilus with 16 of 10-20 all stats and 5 of 5-10% experience is -9. It leaves out the base defense and
+ * defense stats such as enhanced defense, see {@link #DEFENSE_STATS}.
  */
 public final class ItemRollPercent {
 
@@ -32,6 +33,12 @@ public final class ItemRollPercent {
 
     /** Stats GoMule may read under another number: min/max damage, as one-hand, two-hand or throw damage. */
     private static final int[][] STAT_ALIASES = {{21, 23, 159}, {22, 24, 160}};
+
+    /**
+     * ItemStatCost.txt ids of defense stats, which {@link #pointsFromMax} leaves out: enhanced defense, +defense,
+     * defense vs missile and vs melee, and defense per level.
+     */
+    private static final Set<Integer> DEFENSE_STATS = new HashSet<>(Arrays.asList(16, 31, 32, 33, 214, 215));
 
     /** Txt lookups, which scan whole files, kept per template row, property line and armor code. */
     private static final Map<String, List<TemplateLine>> LINES = new ConcurrentHashMap<>();
@@ -94,6 +101,7 @@ public final class ItemRollPercent {
             for (int[] lRoll : propertyRolls(lTemplate, item.getRolledProps())) {
                 lSum += fraction(lRoll[0], lRoll[1], lRoll[2]);
                 lCount++;
+                if (DEFENSE_STATS.contains(lRoll[3])) continue;
                 lPoints = (lPoints == null ? 0 : lPoints) + Math.min(0, lRoll[0] - lRoll[2]);
             }
         }
@@ -105,7 +113,7 @@ public final class ItemRollPercent {
         return new Rolls(lCount == 0 ? null : lSum / lCount, lPoints);
     }
 
-    /** {rolled value, min, max} for each of the item's properties that can roll more than one value. */
+    /** {rolled value, min, max, stat id} for each of the item's properties that can roll more than one value. */
     private static List<int[]> propertyRolls(D2TxtFileItemProperties template, List<D2Prop> rolledProps) {
         // A stat can get values from more than one line (res-all and res-fire both add to fire resist) and the file
         // only stores the sum, so ranges add up per stat, and each varying line is judged by its first stat.
@@ -128,7 +136,7 @@ public final class ItemRollPercent {
             int[] lRange = lRanges.get(lKey);
             Integer lValue = rolledValue(rolledProps, lKey);
             if (lValue == null || lRange[1] <= lRange[0]) continue;
-            lRolls.add(new int[]{lValue, lRange[0], lRange[1]});
+            lRolls.add(new int[]{lValue, lRange[0], lRange[1], Integer.parseInt(lKey.substring(0, lKey.indexOf(':')))});
         }
         return lRolls;
     }

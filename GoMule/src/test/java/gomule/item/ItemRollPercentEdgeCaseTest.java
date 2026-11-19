@@ -125,7 +125,7 @@ public class ItemRollPercentEdgeCaseTest {
             if (points != null) {
                 assertNotNull(roll, item.getItemName());
             } else if (roll != null) {
-                // only the base defense varies, which Roll leaves out
+                // only defense varies (base defense or a stat such as enhanced defense), which Roll leaves out
                 assertTrue(item.isTypeArmor(), item.getItemName() + " has a Roll % but no Roll and isn't armor");
                 defenseOnly++;
             }

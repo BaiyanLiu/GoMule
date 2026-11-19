@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import randall.d2files.D2TxtFile;
+import randall.d2files.D2TxtFileItemProperties;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -153,9 +154,29 @@ public class ItemRollPercentTest {
     }
 
     @Test
-    public void pointsFromMaxLeavesOutBaseDefense() {
-        // ac% 156 of 200, red-mag 18 of 20, red-dmg 18 of 20; the Wire Fleece's base defense is not counted
-        assertEquals(Integer.valueOf(-44 - 2 - 2), ItemRollPercent.pointsFromMax(sample("The Gladiator's Bane")));
+    public void pointsFromMaxLeavesOutDefense() {
+        // red-mag 18 of 20, red-dmg 18 of 20; ac% 156 of 200 and the Wire Fleece's base defense are not counted
+        assertEquals(Integer.valueOf(-2 - 2), ItemRollPercent.pointsFromMax(sample("The Gladiator's Bane")));
+        // Roll % still counts them
+        assertNotNull(ItemRollPercent.of(sample("The Gladiator's Bane")));
+    }
+
+    @Test
+    public void perLevelPropertiesCountInNeitherRollNorRollPercent() {
+        int perLevel = 0;
+        for (int row = 0; row < D2TxtFile.PROPS.getRowSize(); row++) {
+            D2TxtFileItemProperties property = D2TxtFile.PROPS.getRow(row);
+            boolean isPerLevel = false;
+            for (int x = 1; x <= 7; x++) {
+                if (property.get("stat" + x).toLowerCase(Locale.ROOT).contains("perlevel")) isPerLevel = true;
+            }
+            if (!isPerLevel) continue;
+            perLevel++;
+            // even with a range in the template, a "based on character level" line is never judged
+            assertEquals(Arrays.asList(), ItemRollPercent.statKeys(
+                    new ItemRollPercent.TemplateLine(property.get("code"), "", 1, 10)), property.get("code"));
+        }
+        assertTrue(perLevel > 30, "only " + perLevel + " per-level properties");
     }
 
     @Test

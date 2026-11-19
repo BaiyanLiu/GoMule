@@ -127,6 +127,34 @@ public class StashColumnTest {
         }
     }
 
+    @Test
+    public void defenseTieBreakPutsLowerDefenseFirstAndItemsWithoutDefenseLast() throws Exception {
+        List<D2Item> items = new ArrayList<>();
+        items.addAll(new D2SharedStashReader().readStash(ROW, loadTestResources("sharedStashFiles", "modernGold.d2i").getAbsolutePath()).getItemList());
+        items.addAll(new D2SharedStashReader().readStash(ROW, loadTestResources("userSamples", "ModernSharedStashSoftCoreV2.d2i").getAbsolutePath()).getItemList());
+        long armor = items.stream().filter(D2Item::isTypeArmor).map(D2Item::getiDef).distinct().count();
+        assertTrue(armor >= 2, "samples need armor with different defense");
+        assertTrue(items.stream().anyMatch(item -> !item.isTypeArmor()));
+
+        java.util.Collections.reverse(items);
+        items.sort(StashColumn::compareLowestDefenseFirst);
+        boolean seenNoDefense = false;
+        int lastDefense = Integer.MIN_VALUE;
+        for (D2Item item : items) {
+            if (!item.isTypeArmor()) {
+                seenNoDefense = true;
+                continue;
+            }
+            assertFalse(seenNoDefense, "armor after an item without defense: " + item.getItemName());
+            assertTrue(item.getiDef() >= lastDefense, item.getItemName());
+            assertEquals(Integer.toString(item.getiDef()), new StashColumn(StashColumn.Builtin.DEFENSE).getValue(item));
+            lastDefense = item.getiDef();
+        }
+        for (D2Item item : items) {
+            assertEquals(0, StashColumn.compareLowestDefenseFirst(item, item));
+        }
+    }
+
     static List<StashColumn> allColumns() {
         List<StashColumn> columns = new ArrayList<>();
         for (StashColumn.Builtin builtin : StashColumn.Builtin.values()) columns.add(new StashColumn(builtin));

@@ -206,6 +206,28 @@ public class StashColumn {
         return value1.compareToIgnoreCase(value2);
     }
 
+    /**
+     * Breaks a tie on the column the stash table is sorted by: by name, then the worst roll first, then the lowest
+     * defense, skipping whichever of those is the sorted column itself. Applies even when those columns are hidden.
+     */
+    public static int compareTieBreakers(Builtin sortedBy, D2Item item1, D2Item item2) {
+        int lResult = sortedBy == Builtin.NAME ? 0 : item1.getName().compareTo(item2.getName());
+        if (lResult == 0 && sortedBy != Builtin.ROLL_POINTS) lResult = ItemRollPercent.compareWorstRollFirst(item1, item2);
+        if (lResult == 0 && sortedBy != Builtin.DEFENSE) lResult = compareLowestDefenseFirst(item1, item2);
+        return lResult;
+    }
+
+    /**
+     * The tie-breaker after Roll: armor with lower defense first (the weaker item first, as with Roll), then items
+     * without defense. Uses the defense worked out when the item was read, as shown in the Def column.
+     */
+    static int compareLowestDefenseFirst(D2Item item1, D2Item item2) {
+        boolean lHasDef1 = item1.isTypeArmor();
+        boolean lHasDef2 = item2.isTypeArmor();
+        if (!lHasDef1 || !lHasDef2) return Boolean.compare(!lHasDef1, !lHasDef2);
+        return Integer.compare(item1.getiDef(), item2.getiDef());
+    }
+
     private static String stripPercent(String value) {
         return value.endsWith("%") ? value.substring(0, value.length() - 1) : value;
     }
