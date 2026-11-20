@@ -185,7 +185,9 @@ public class ItemRollPercentEdgeCaseTest {
 
         File atmaStash = copyOfSample("Set - Aldur.d2x");
 
-        List<D2Item> before = readItems(loadTestResources("userSamples").listFiles());
+        List<D2Item> before = readItems(loadTestResources("userSamples", "Javazon.d2s"),
+                loadTestResources("userSamples", "ModernSharedStashSoftCoreV2.d2i"),
+                loadTestResources("userSamples", "Set - Aldur.d2x"));
         List<D2Item> after = readItems(character, sharedStash, atmaStash);
         assertEquals(before.size(), after.size());
         for (int i = 0; i < before.size(); i++) {

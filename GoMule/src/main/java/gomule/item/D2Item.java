@@ -359,18 +359,13 @@ public class D2Item implements Comparable, D2ItemInterface {
         } else {
             long lHasGUID = pFile.read(1);
 
-            if (lHasGUID == 1) { // GUID ???
-                if (iType.startsWith("rune") || iType.startsWith("gem")
-                        || iType.startsWith("amu") || iType.startsWith("rin")
-                        || isCharm() || !isTypeMisc()) {
-
-                    iGUID = "0x" + Integer.toHexString((int) pFile.read(32))
-                            + " 0x" + Integer.toHexString((int) pFile.read(32))
-                            + " 0x" + Integer.toHexString((int) pFile.read(32))
-                            + " 0x" + Integer.toHexString((int) pFile.read(32));
-                } else {
-                    pFile.read(3); //skip empty
-                }
+            if (lHasGUID == 1) {
+                // D2R always stores a 128-bit GUID when the flag is set. Newer game versions set it on
+                // jewels, potions and other misc items too, so it must be read for every item type.
+                iGUID = "0x" + Integer.toHexString((int) pFile.read(32))
+                        + " 0x" + Integer.toHexString((int) pFile.read(32))
+                        + " 0x" + Integer.toHexString((int) pFile.read(32))
+                        + " 0x" + Integer.toHexString((int) pFile.read(32));
             }
         }
 
