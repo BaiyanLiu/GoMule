@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -148,6 +149,10 @@ public class D2Item implements Comparable, D2ItemInterface {
     private boolean iIsChar;
 
     private int iCharLvl;
+
+    // D2ItemRenderer.itemDump(this, true), kept for filtering and stash columns; cleared when the item's text can change
+    private String iItemDump;
+    private String iItemDumpLowerCase;
 
     private int iReqLvl = -1;
 
@@ -1672,7 +1677,43 @@ public class D2Item implements Comparable, D2ItemInterface {
     }
 
     public void setCharLvl(int pCharLvl) {
+        if (iCharLvl != pCharLvl) {
+            // per-level properties are shown at the character's level
+            invalidateItemDump();
+        }
         iCharLvl = pCharLvl;
+    }
+
+    /**
+     * The item's full text ({@code D2ItemRenderer.itemDump(item, true)}), built once and reused until
+     * {@link #invalidateItemDump()}.
+     */
+    public String getItemDump() {
+        if (iItemDump == null) {
+            try {
+                iItemDump = D2ItemRenderer.itemDump(this, true);
+            } catch (RuntimeException pEx) {
+                // keep searching and sorting the rest of the stash usable; the name is still searchable
+                System.err.println("Could not show " + getItemName() + ": " + pEx);
+                iItemDump = getItemName();
+            }
+        }
+        return iItemDump;
+    }
+
+    public String getItemDumpLowerCase() {
+        if (iItemDumpLowerCase == null) {
+            iItemDumpLowerCase = getItemDump().toLowerCase(Locale.ROOT);
+        }
+        return iItemDumpLowerCase;
+    }
+
+    /**
+     * Drops the cached item text; call after changing anything it shows.
+     */
+    public void invalidateItemDump() {
+        iItemDump = null;
+        iItemDumpLowerCase = null;
     }
 
     public String getPreSuf() {
@@ -1711,31 +1752,33 @@ public class D2Item implements Comparable, D2ItemInterface {
         return retStr;
     }
 
+    private static final Pattern CONFORMS_NUMBER = Pattern.compile("[^\\(?](\\d+)");
+
+    /**
+     * Whether the item's text contains {@code prop} (ignoring case, every character taken literally), and, unless
+     * {@code pVal} is -1337, a line containing it has a number at least (or with {@code min} false, at most) {@code pVal}.
+     */
     public boolean conforms(String prop, int pVal, boolean min) {
-        String dumpStr = D2ItemRenderer.itemDump(this, true);
-        if (dumpStr.toLowerCase().contains(prop.toLowerCase())) {
-            if (pVal == -1337) {
-                return true;
-            }
-            Pattern propertyLinePattern = Pattern.compile("(\\n.*" + prop.toLowerCase() + ".*\\n)", Pattern.UNIX_LINES);
-            Matcher propertyPatternMatcher = propertyLinePattern.matcher("\n" + dumpStr.toLowerCase() + "\n");
-            while (propertyPatternMatcher.find()) {
-                Pattern pat = Pattern.compile("[^\\(?](\\d+)");
-                Matcher mat = pat.matcher(propertyPatternMatcher.group());
-                while (mat.find()) {
-                    if (mat.groupCount() > 0) {
-                        if (min == true) {
-                            if (Integer.parseInt(mat.group(1)) >= pVal) {
-
-                                return true;
-                            }
-                        } else {
-                            if (Integer.parseInt(mat.group(1)) <= pVal) {
-
-                                return true;
-                            }
-                        }
-                    }
+        String lDump = getItemDumpLowerCase();
+        String lProp = prop.toLowerCase(Locale.ROOT);
+        if (!lDump.contains(lProp)) {
+            return false;
+        }
+        if (pVal == -1337) {
+            return true;
+        }
+        for (String lLine : lDump.split("\\R")) {
+            if (!lLine.contains(lProp)) continue;
+            Matcher lNumbers = CONFORMS_NUMBER.matcher("\n" + lLine + "\n");
+            while (lNumbers.find()) {
+                long lNumber;
+                try {
+                    lNumber = Long.parseLong(lNumbers.group(1));
+                } catch (NumberFormatException pEx) {
+                    continue; // a digit run too long to be a stat, such as a GUID
+                }
+                if (min ? lNumber >= pVal : lNumber <= pVal) {
+                    return true;
                 }
             }
         }
@@ -1808,6 +1851,8 @@ public class D2Item implements Comparable, D2ItemInterface {
     }
 
     public void refreshItemMods() {
+        // set bonuses or socketed items may have changed what the item shows
+        invalidateItemDump();
         if (isTypeArmor() || isTypeWeapon()) {
             applyItemMods();
         }

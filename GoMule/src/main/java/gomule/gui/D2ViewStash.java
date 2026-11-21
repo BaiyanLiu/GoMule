@@ -26,6 +26,7 @@ import gomule.d2x.StashColumn;
 import gomule.item.D2BodyLocations;
 import gomule.item.D2Item;
 import gomule.item.D2ItemRenderer;
+import gomule.item.D2ItemSearch;
 import gomule.item.D2WeaponTypes;
 import gomule.model.VersionController;
 import gomule.util.D2CellStringRenderer;
@@ -230,6 +231,10 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
         iRequerementFilter = new RandallPanel();
         freeTextSearch = new JTextField();
+        freeTextSearch.setToolTipText("<html>Words must all appear: <b>ias res</b><br>"
+                + "-word leaves out items with it: <b>-eth</b><br>"
+                + "a|b matches either: <b>jah|ber</b><br>"
+                + "quotes keep a phrase together: <b>\"cast rate\"</b></html>");
         freeTextSearch.getDocument().addDocumentListener(iStashFilter);
         iReqMinLvl = new JTextField();
         iReqMinLvl.getDocument().addDocumentListener(iStashFilter);
@@ -1037,7 +1042,6 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
     class D2ItemModel implements TableModel {
         private List<StashColumn> iColumns;
-        private final Map<D2Item, String> iItemDumps = new HashMap<>();
         private final ArrayList iCusFilterList = new ArrayList();
         //        private D2ItemList   iStash;
         private ArrayList iItems;
@@ -1084,8 +1088,7 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
             if (!pColumn.isProperty()) {
                 return pColumn.getValue(pItem, null);
             }
-            String lDump = iItemDumps.computeIfAbsent(pItem, lItem -> D2ItemRenderer.itemDump(lItem, true));
-            return pColumn.getValue(pItem, lDump);
+            return pColumn.getValue(pItem, pItem.getItemDump());
         }
 
         public int getInteger(JTextField pTextfield) {
@@ -1118,7 +1121,8 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
             }
 
             iItems = new ArrayList();
-            iItemDumps.clear();
+            // the model is built (and refreshed) before the search box exists
+            D2ItemSearch lSearch = D2ItemSearch.parse(freeTextSearch == null ? "" : freeTextSearch.getText());
             if (iStash != null) {
                 List lList = iStash.getItemList();
                 for (int i = 0; i < lList.size(); i++) {
@@ -1335,12 +1339,8 @@ public class D2ViewStash extends JInternalFrame implements D2ItemContainer, D2It
 
                     if (lAdd1 && lAdd2) {
 
-                        if (!freeTextSearch.getText().isEmpty()) {
-                            D2ItemModelCusFilter freeformSearchFilter = new D2ItemModelCusFilter();
-                            freeformSearchFilter.filterOn = true;
-                            freeformSearchFilter.filterString = freeTextSearch.getText();
-                            if (!lItem.conforms(freeformSearchFilter.filterString, freeformSearchFilter.filterVal, freeformSearchFilter.filterMin))
-                                lAdd1 = false;
+                        if (!lSearch.matches(lItem)) {
+                            lAdd1 = false;
                         }
 
                         for (int lCusFilterNr = 0; lCusFilterNr < iCusFilterList.size(); lCusFilterNr++) {

@@ -1,7 +1,6 @@
 package gomule.d2x;
 
 import gomule.item.D2Item;
-import gomule.item.D2ItemRenderer;
 import gomule.item.ItemRollPercent;
 
 import java.util.ArrayList;
@@ -172,7 +171,7 @@ public class StashColumn {
     }
 
     public String getValue(D2Item item) {
-        return getValue(item, isProperty() ? D2ItemRenderer.itemDump(item, true) : null);
+        return getValue(item, isProperty() ? item.getItemDump() : null);
     }
 
     /**

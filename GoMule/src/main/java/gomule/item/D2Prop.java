@@ -144,7 +144,7 @@ public class D2Prop {
         String descstrpos = itemStatCostRow.get("descstrpos");
         String oString = isNullOrEmpty(descstrpos)
                 ? null
-                : D2Files.getInstance().getTranslations().getTranslation(descstrpos);
+                : translate(descstrpos);
         //FUNCTION 0 means that you should use the txt files to find the print function to use. Otherwise, it should be a case of looking for custom funcs
         if (funcN == 0) {
 
@@ -258,11 +258,11 @@ public class D2Prop {
             case (6):
                 if (dispLoc == 1) {
                     return "+" + pVals[0] + " " + oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"));
+                            + translate(itemStatCostRow.get("descstr2"));
 
                 } else if (dispLoc == 2) {
                     return oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"))
+                            + translate(itemStatCostRow.get("descstr2"))
                             + " +" + pVals[0];
                 } else {
                     return oString;
@@ -271,11 +271,11 @@ public class D2Prop {
             case (7):
                 if (dispLoc == 1) {
                     return pVals[0] + "% " + oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"));
+                            + translate(itemStatCostRow.get("descstr2"));
 
                 } else if (dispLoc == 2) {
                     return oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"))
+                            + translate(itemStatCostRow.get("descstr2"))
                             + pVals[0] + "%";
                 } else {
                     return oString;
@@ -284,11 +284,11 @@ public class D2Prop {
             case (8):
                 if (dispLoc == 1) {
                     return "+" + pVals[0] + "% " + oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"));
+                            + translate(itemStatCostRow.get("descstr2"));
 
                 } else if (dispLoc == 2) {
                     return oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"))
+                            + translate(itemStatCostRow.get("descstr2"))
                             + " +" + pVals[0] + "%";
                 } else {
                     return oString;
@@ -297,11 +297,11 @@ public class D2Prop {
             case (9):
                 if (dispLoc == 1) {
                     return pVals[0] + " " + oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"));
+                            + translate(itemStatCostRow.get("descstr2"));
 
                 } else if (dispLoc == 2) {
                     return oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"))
+                            + translate(itemStatCostRow.get("descstr2"))
                             + " " + pVals[0];
                 } else {
                     return oString;
@@ -310,11 +310,11 @@ public class D2Prop {
             case (10):
                 if (dispLoc == 1) {
                     return (pVals[0] * 100) / 128 + "% " + oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"));
+                            + translate(itemStatCostRow.get("descstr2"));
 
                 } else if (dispLoc == 2) {
                     return oString + " "
-                            + D2Files.getInstance().getTranslations().getTranslation(itemStatCostRow.get("descstr2"))
+                            + translate(itemStatCostRow.get("descstr2"))
                             + (pVals[0] * 100) / 128 + "%";
                 } else {
                     return oString;
@@ -350,9 +350,7 @@ public class D2Prop {
                 String lText = lRow.get("skilldesc");
                 String lString = null;
                 if (!"".equals(lText)) {
-                    lString = D2Files.getInstance()
-                            .getTranslations()
-                            .getTranslation(D2TxtFile.SKILL_DESC
+                    lString = translate(D2TxtFile.SKILL_DESC
                                     .searchColumns("skilldesc", lText)
                                     .get("str name"));
                 }
@@ -366,9 +364,7 @@ public class D2Prop {
                 oString = oString.replaceAll("%d", Integer.toString(pVals[1]));
                 return oString.replaceAll(
                         "%s",
-                        D2Files.getInstance()
-                                .getTranslations()
-                                .getTranslation(D2TxtFile.SKILL_DESC
+                        translate(D2TxtFile.SKILL_DESC
                                         .searchColumns(
                                                 "skilldesc",
                                                 D2TxtFile.SKILLS
@@ -433,9 +429,7 @@ public class D2Prop {
 
             case (23):
                 return pVals[1] + "% " + oString + " "
-                        + D2Files.getInstance()
-                        .getTranslations()
-                        .getTranslation(
+                        + translate(
                                 D2TxtFile.MONSTATS.getRow(pVals[0]).get("NameStr"));
 
             case (24):
@@ -443,9 +437,7 @@ public class D2Prop {
                 oString = oString.replaceFirst("%d", Integer.toString(pVals[2]));
                 oString = oString.replaceAll("%d", Integer.toString(pVals[3]));
                 return "Level " + pVals[0] + " "
-                        + D2Files.getInstance()
-                        .getTranslations()
-                        .getTranslation(D2TxtFile.SKILL_DESC
+                        + translate(D2TxtFile.SKILL_DESC
                                 .searchColumns(
                                         "skilldesc",
                                         D2TxtFile.SKILLS
@@ -456,9 +448,7 @@ public class D2Prop {
 
             case (27):
                 return "+" + pVals[1] + " to "
-                        + D2Files.getInstance()
-                        .getTranslations()
-                        .getTranslation(D2TxtFile.SKILL_DESC
+                        + translate(D2TxtFile.SKILL_DESC
                                 .searchColumns(
                                         "skilldesc",
                                         D2TxtFile.SKILLS
@@ -466,9 +456,7 @@ public class D2Prop {
                                                 .get("skilldesc"))
                                 .get("str name"))
                         + " "
-                        + D2Files.getInstance()
-                        .getTranslations()
-                        .getTranslation((getSkillsRowForId(pVals[0]).get("charclass").charAt(0)
+                        + translate((getSkillsRowForId(pVals[0]).get("charclass").charAt(0)
                                 + "")
                                 .toUpperCase()
                                 + getSkillsRowForId(pVals[0])
@@ -478,9 +466,7 @@ public class D2Prop {
 
             case (28):
                 return "+" + pVals[1] + " to "
-                        + D2Files.getInstance()
-                        .getTranslations()
-                        .getTranslation(D2TxtFile.SKILL_DESC
+                        + translate(D2TxtFile.SKILL_DESC
                                 .searchColumns(
                                         "skilldesc",
                                         D2TxtFile.SKILLS
@@ -870,5 +856,14 @@ public class D2Prop {
                     }
                 }
         }
+    }
+
+    /**
+     * The translation of {@code key}, or the key itself when the translations don't have it (such as a monster or
+     * skill added by a mod), so one unknown name doesn't stop the whole item from being shown.
+     */
+    private static String translate(String key) {
+        String lTranslation = D2Files.getInstance().getTranslations().getTranslationOrNull(key);
+        return lTranslation != null ? lTranslation : key;
     }
 }
