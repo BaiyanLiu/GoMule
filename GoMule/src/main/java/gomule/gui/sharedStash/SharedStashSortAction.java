@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * The "Sort into ATMA stashes" button: previews where each shared stash item would go, then moves them.
+ * The "Sort into stashes" button: previews where each shared stash item would go, then moves them.
  */
 class SharedStashSortAction {
 
@@ -31,17 +31,17 @@ class SharedStashSortAction {
         if (sharedStash == null || fileManager.getProject() == null) return Collections.emptyList();
         Map<String, List<StashSortRule>> rulesByStash = fileManager.getProject().getAllStashSortRules();
         if (rulesByStash.isEmpty()) {
-            JOptionPane.showMessageDialog(panel, "No ATMA stash has sorting rules yet.\n"
-                    + "Right-click a .d2x stash in the project tree and choose \"Sorting rules...\".", "Sort into ATMA stashes", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(panel, "No stash has sorting rules yet.\n"
+                    + "Right-click a .d2x stash in the project tree and choose \"Sorting rules...\".", "Sort into stashes", JOptionPane.INFORMATION_MESSAGE);
             return Collections.emptyList();
         }
         SharedStashSorter.Plan plan = SharedStashSorter.plan(sharedStash, rulesByStash);
         String summary = describe(plan);
         if (plan.getMoves().isEmpty()) {
-            JOptionPane.showMessageDialog(panel, new Object[]{"Nothing to move.", previewPane(summary)}, "Sort into ATMA stashes", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(panel, new Object[]{"Nothing to move.", previewPane(summary)}, "Sort into stashes", JOptionPane.INFORMATION_MESSAGE);
             return Collections.emptyList();
         }
-        int answer = JOptionPane.showConfirmDialog(panel, new Object[]{previewPane(summary), "Move these items now?"}, "Sort into ATMA stashes",
+        int answer = JOptionPane.showConfirmDialog(panel, new Object[]{previewPane(summary), "Move these items now?"}, "Sort into stashes",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (answer != JOptionPane.OK_OPTION) return Collections.emptyList();
 
@@ -51,7 +51,7 @@ class SharedStashSortAction {
         int movedCount = moved.values().stream().mapToInt(Integer::intValue).sum();
         if (movedCount < plan.getMoves().size()) {
             JOptionPane.showMessageDialog(panel, (plan.getMoves().size() - movedCount)
-                    + " items stayed in the shared stash because their ATMA stash could not be opened.", "Sort into ATMA stashes", JOptionPane.WARNING_MESSAGE);
+                    + " items stayed in the shared stash because their stash could not be opened.", "Sort into stashes", JOptionPane.WARNING_MESSAGE);
         }
         return movedItems;
     }
@@ -73,7 +73,7 @@ class SharedStashSortAction {
         notReverted.addAll(stillLoaded.get(false));
         panel.build();
         if (!notReverted.isEmpty()) {
-            JOptionPane.showMessageDialog(panel, new Object[]{notReverted.size() + " items stayed in their ATMA stash (moved or saved since the sort, or no room left):",
+            JOptionPane.showMessageDialog(panel, new Object[]{notReverted.size() + " items stayed in their stash (moved or saved since the sort, or no room left):",
                     previewPane(notReverted.stream().map(moved -> moved.getItem().getItemName() + " in " + stashName(moved.getStashFileName()))
                             .collect(Collectors.joining("\n")))}, "Revert last sort", JOptionPane.WARNING_MESSAGE);
         }
