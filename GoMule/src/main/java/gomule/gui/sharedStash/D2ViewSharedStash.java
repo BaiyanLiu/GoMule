@@ -38,8 +38,8 @@ public class D2ViewSharedStash extends JInternalFrame implements D2ItemContainer
         ToolTipManager.sharedInstance().setDismissDelay(40000);
         ToolTipManager.sharedInstance().setInitialDelay(300);
         sharedStashPanel = new SharedStashPanel(fileManager, this);
-        JButton sortButton = new JButton("Sort into ATMA stashes");
-        sortButton.setToolTipText("Move every item that matches one ATMA stash's sorting rules into that stash");
+        JButton sortButton = new JButton("Sort into stashes");
+        sortButton.setToolTipText("Move every item that matches one stash's sorting rules into that stash");
         sortButton.addActionListener(e -> {
             List<SharedStashSorter.MovedItem> moved = SharedStashSortAction.run(sharedStashPanel, fileManager);
             if (!moved.isEmpty()) setLastSort(moved);

@@ -1,20 +1,16 @@
 <div align="center">
 
-# GoMule, extended
+# GoMule
 
-**A [GoMule](https://github.com/silospen/gomule) fork for D2R 3.4: dark theme, shared stash auto-sort, roll columns, smarter search.**
+**A [GoMule](https://gomule.sourceforge.io) fork**
 
-<img src="screenshots/overview.png" alt="Modern dark theme with an ATMA stash showing Roll % and Roll columns" width="100%">
+<img src="screenshots/overview.png" alt="Modern dark theme with a stash showing Roll % and Roll columns" width="100%">
 
 </div>
-
-> [!NOTE]
-> Only the fork's additions are listed here. Original notes: [`GoMule/README.txt`](GoMule/README.txt).
 
 ## Modern dark theme
 
 - New default look, with gold accents and striped tables. Switch under **File > Switch Appearance**.
-- Open files show in gold in the project tree.
 
 ## Shared stash auto-sort
 
@@ -22,7 +18,7 @@
 <tr>
 <td width="42%" valign="top">
 
-**1. Rules:** right-click an ATMA stash, then **Sorting rules...**. An item must match every section you fill in.
+**1. Rules:** right-click a stash, then **Sorting rules...**. An item must match every section you fill in.
 
 </td>
 <td><img src="screenshots/sort-rules.png" alt="Sorting rules for Set - Aldur.d2x" width="100%"></td>
@@ -30,7 +26,7 @@
 <tr>
 <td valign="top">
 
-**2. Sort:** press **Sort into ATMA stashes**.
+**2. Sort:** press **Sort into stashes**.
 
 </td>
 <td><img src="screenshots/shared-stash.png" alt="Shared stash with Sort and Revert buttons" width="60%"></td>
@@ -47,7 +43,7 @@
 </tr>
 </table>
 
-You can also drag a shared stash item onto an ATMA stash in the tree.
+You can also drag a shared stash item onto a stash in the tree.
 
 ## Roll columns
 
